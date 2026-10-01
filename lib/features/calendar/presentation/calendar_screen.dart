@@ -8,6 +8,7 @@ import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart'
 import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_list_providers.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/widgets/birthday_avatar.dart';
 import 'package:birthday_calendar/features/calendar/domain/calendar_month.dart';
+import 'package:birthday_calendar/features/calendar/domain/day_marker_style.dart';
 import 'package:birthday_calendar/features/settings/presentation/settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -307,8 +308,8 @@ class _MonthCell extends StatelessWidget {
   }
 }
 
-  /// Аватары (или точки) под числом в месячной сетке.
-  class _MiniAvatars extends StatelessWidget {
+/// Аватары (или точки) под числом в месячной сетке.
+class _MiniAvatars extends StatelessWidget {
   const _MiniAvatars({required this.birthdays});
 
   final List<BirthdayWithOccurrence> birthdays;
@@ -615,10 +616,16 @@ class _MiniMonth extends StatelessWidget {
                             children: [
                               for (var i = 0; i < 7; i++)
                                 Expanded(
-                                  child: _MiniDay(
-                                    day: month.days[week * 7 + i],
-                                    cellHeight: cellHeight,
-                                    onTap: onDayTap,
+                                  child: LayoutBuilder(
+                                    builder: (context, cell) => _MiniDay(
+                                      day: month.days[week * 7 + i],
+                                      cellHeight: cellHeight,
+                                      markerDiameter: markerDiameterFor(
+                                        cellWidth: cell.maxWidth,
+                                        cellHeight: cellHeight,
+                                      ),
+                                      onTap: onDayTap,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -667,11 +674,18 @@ class _MiniDay extends StatelessWidget {
   const _MiniDay({
     required this.day,
     required this.cellHeight,
+    required this.markerDiameter,
     required this.onTap,
   });
 
   final CalendarDay day;
   final double cellHeight;
+
+  /// Размер кружка под числом. Считается вызывающим кодом: в годовом виде
+  /// ячейки мелкие, и фиксированный размер либо наезжал на число, либо
+  /// схлопывался в точку.
+  final double markerDiameter;
+
   final void Function(CalendarDay day) onTap;
 
   @override
@@ -713,10 +727,7 @@ class _MiniDay extends StatelessWidget {
           if (first != null)
             Positioned(
               bottom: 0,
-              child: _DayMarker(
-                birthdays: day.birthdays,
-                diameter: 12,
-              ),
+              child: _DayMarker(birthdays: day.birthdays, diameter: markerDiameter),
             ),
           ],
         ),
@@ -748,11 +759,20 @@ class _DayMarker extends StatelessWidget {
     final hasPhoto = first.avatarFileName != null;
 
     if (hasPhoto) {
-      return BirthdayAvatar(birthday: first, size: diameter);
+      return BirthdayAvatar(
+        birthday: first,
+        size: diameter,
+        showInitial: showsInitial(diameter, birthdays.length),
+      );
     }
 
     final colors = _colorsOf(context);
-    final initial = _initialOf(birthdays.first.birthday.name);
+    final initial = markerInitial(birthdays.first.birthday.name);
+    final showInitial =
+        initial.isNotEmpty && showsInitial(diameter, colors.length);
+    final backing = needsInitialBacking(colors.length);
+    final backingFill = backingColor(Theme.of(context).colorScheme.brightness);
+    final initialColor = initialColorOn(backing ? backingFill : colors.first);
 
     // Круг с долями и буквой внутри. У одного человека круг одноцветный,
     // у нескольких — разделённый, но подпись остаётся.
@@ -769,13 +789,25 @@ class _DayMarker extends StatelessWidget {
             height: diameter,
             child: CustomPaint(painter: _PiePainter(colors: colors)),
           ),
-          // Буква ставится, когда доля одна и круг достаточно велик:
-          // в годовом виде ячейка мелкая, и подпись слилась бы с числом.
-          if (colors.length == 1 && initial.isNotEmpty && diameter >= 16)
+          // Подложка под букву для разделённого круга: в центре может
+          // проходить граница секторов, и цвет сектора дал бы нечитаемую
+          // подпись.
+          if (showInitial && backing)
+            Container(
+              width: backingDiameterFor(diameter),
+              height: backingDiameterFor(diameter),
+              decoration: BoxDecoration(
+                color: backingFill,
+                shape: BoxShape.circle,
+              ),
+            ),
+          // Буква ставится, когда круг достаточно велик: в годовом виде
+          // ячейка мелкая, и подпись слилась бы с числом.
+          if (showInitial)
             Text(
               initial,
               style: TextStyle(
-                color: _contrasting(colors.first),
+                color: initialColor,
                 fontSize: diameter * 0.52,
                 fontWeight: FontWeight.bold,
                 height: 1,
@@ -784,20 +816,6 @@ class _DayMarker extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// Первая буква имени: «Аня» → «А».
-  static String _initialOf(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return '';
-    return String.fromCharCode(trimmed.runes.first).toUpperCase();
-  }
-
-  /// Белый или тёмный цвет буквы — что читаемее на данном круге.
-  static Color _contrasting(Color background) {
-    return background.computeLuminance() > 0.55
-        ? const Color(0xFF1A1A1A)
-        : Colors.white;
   }
 
   /// Цвета по каждой записи: свой у каждого профиля.
@@ -832,7 +850,7 @@ class _PiePainter extends CustomPainter {
     final center = size.center(Offset.zero);
     final radius = diameter / 2;
     final total = colors.length;
-    const gap = 0.04; // доля оборота между секторами
+    final gap = pieGapFor(total); // доля оборота между секторами
     for (var i = 0; i < total; i++) {
       final start = -math.pi / 2 + (2 * math.pi * (i + gap) / total);
       final end = -math.pi / 2 + (2 * math.pi * (i + 1 - gap) / total);

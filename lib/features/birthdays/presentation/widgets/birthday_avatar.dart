@@ -6,10 +6,21 @@ import 'package:flutter/material.dart';
 
 /// Аватар дня рождения: фото, цвет или первая буква имени.
 class BirthdayAvatar extends StatefulWidget {
-  const BirthdayAvatar({required this.birthday, this.size = 40, super.key});
+  const BirthdayAvatar({
+    required this.birthday,
+    this.size = 40,
+    this.showInitial = true,
+    super.key,
+  });
 
   final Birthday birthday;
   final double size;
+
+  /// Показывать ли букву в кружке календаря.
+  ///
+  /// В месячной сетке буква помогает узнать праздник, в годовом виде круг
+  /// мельче и подпись только мешает читать число дня.
+  final bool showInitial;
 
   @override
   State<BirthdayAvatar> createState() => _BirthdayAvatarState();
@@ -82,14 +93,17 @@ class _BirthdayAvatarState extends State<BirthdayAvatar> {
     return ColoredBox(
       color: background,
       child: Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: foreground,
-            fontSize: widget.size * 0.45,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: widget.showInitial
+            ? Text(
+                letter,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: widget.size * 0.45,
+                  fontWeight: FontWeight.w600,
+                  height: 1,
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
