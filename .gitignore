@@ -52,3 +52,7 @@ android/key.properties
 
 # Скриншоты и логи проверок.
 /screenshot/
+
+# Собранные APK и exe: в репозитории живут только как релизы GitHub.
+release/
+release/
