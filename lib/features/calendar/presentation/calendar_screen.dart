@@ -307,8 +307,8 @@ class _MonthCell extends StatelessWidget {
   }
 }
 
-/// Аватары (или точки) под числом в месячной сетке.
-class _MiniAvatars extends StatelessWidget {
+  /// Аватары (или точки) под числом в месячной сетке.
+  class _MiniAvatars extends StatelessWidget {
   const _MiniAvatars({required this.birthdays});
 
   final List<BirthdayWithOccurrence> birthdays;
@@ -317,7 +317,7 @@ class _MiniAvatars extends StatelessWidget {
   Widget build(BuildContext context) {
     // Тот же крупный круг со счётчиком, что и в годовом виде: мелкие точки
     // не читались, а несколько дней рождения в один день не было видно.
-    return _DayMarker(birthdays: birthdays, size: 34);
+    return _DayMarker(birthdays: birthdays, diameter: 20);
   }
 }
 
@@ -715,7 +715,7 @@ class _MiniDay extends StatelessWidget {
               bottom: 0,
               child: _DayMarker(
                 birthdays: day.birthdays,
-                size: cellHeight,
+                diameter: 12,
               ),
             ),
           ],
@@ -732,43 +732,72 @@ class _MiniDay extends StatelessWidget {
 /// делится на доли: по одной на человека, каждая своего цвета. Так видно и
 /// число, и то, что записи разные.
 class _DayMarker extends StatelessWidget {
-  const _DayMarker({required this.birthdays, required this.size});
+  const _DayMarker({required this.birthdays, required this.diameter});
 
   final List<BirthdayWithOccurrence> birthdays;
-  final double size;
+
+  /// Диаметр круга задаёт вызывающий код: в годовом виде ячейки мелкие,
+  /// размер нужно задавать явно, иначе круг сожмётся в точку.
+  final double diameter;
 
   @override
   Widget build(BuildContext context) {
     if (birthdays.isEmpty) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
     final first = birthdays.first.birthday;
     final hasPhoto = first.avatarFileName != null;
-
-    // Круг занимает всю ширину ячейки, но не выше половины: иначе он
-    // наезжает на число.
-    final diameter = (size * 0.42).clamp(9.0, 18.0);
 
     if (hasPhoto) {
       return BirthdayAvatar(birthday: first, size: diameter);
     }
 
     final colors = _colorsOf(context);
-    if (colors.length == 1) {
-      return _circle(color: colors.first, size: diameter);
-    }
+    final initial = _initialOf(birthdays.first.birthday.name);
 
-    // Делёный круг: каждая доля — один человек.
+    // Круг с долями и буквой внутри. У одного человека круг одноцветный,
+    // у нескольких — разделённый, но подпись остаётся.
     return SizedBox(
       width: diameter,
       height: diameter,
-      child: CustomPaint(
-        painter: _PiePainter(
-          colors: colors,
-          background: theme.colorScheme.surface,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // SizedBox обязателен: без него CustomPaint в Stack растягивается
+          // на всю ячейку, круг схлопывается и буква не помещается.
+          SizedBox(
+            width: diameter,
+            height: diameter,
+            child: CustomPaint(painter: _PiePainter(colors: colors)),
+          ),
+          // Буква ставится, когда доля одна и круг достаточно велик:
+          // в годовом виде ячейка мелкая, и подпись слилась бы с числом.
+          if (colors.length == 1 && initial.isNotEmpty && diameter >= 16)
+            Text(
+              initial,
+              style: TextStyle(
+                color: _contrasting(colors.first),
+                fontSize: diameter * 0.52,
+                fontWeight: FontWeight.bold,
+                height: 1,
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  /// Первая буква имени: «Аня» → «А».
+  static String _initialOf(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '';
+    return String.fromCharCode(trimmed.runes.first).toUpperCase();
+  }
+
+  /// Белый или тёмный цвет буквы — что читаемее на данном круге.
+  static Color _contrasting(Color background) {
+    return background.computeLuminance() > 0.55
+        ? const Color(0xFF1A1A1A)
+        : Colors.white;
   }
 
   /// Цвета по каждой записи: свой у каждого профиля.
@@ -787,53 +816,47 @@ class _DayMarker extends StatelessWidget {
     return result;
   }
 
-  /// Плоский круг одного цвета.
-  static Widget _circle({required Color color, required double size}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
 }
 
 /// Рисует круг, разделённый на доли — по одной на день рождения.
 class _PiePainter extends CustomPainter {
-  const _PiePainter({required this.colors, required this.background});
+  const _PiePainter({required this.colors});
 
   final List<Color> colors;
-  final Color background;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      // Толщина штриха равна радиусу: круг получается залитым, а доли
-      // отделяются тонкими линиями зазора.
-      ..strokeWidth = size.shortestSide / 2
-      ..strokeCap = StrokeCap.butt;
-
-    canvas.drawCircle(rect.center, size.shortestSide / 2, paint..color = background);
-
+    // Рисуем по центру квадрата со стороной `diameter`: иначе на неквадратной
+    // ячейке круг превращался в овал.
+    final diameter = size.shortestSide;
+    final center = size.center(Offset.zero);
+    final radius = diameter / 2;
     final total = colors.length;
-    const gap = 0.06; // доля оборота, свободная между секторами
+    const gap = 0.04; // доля оборота между секторами
     for (var i = 0; i < total; i++) {
       final start = -math.pi / 2 + (2 * math.pi * (i + gap) / total);
       final end = -math.pi / 2 + (2 * math.pi * (i + 1 - gap) / total);
-      paint.color = colors[i];
-      canvas.drawArc(
-        Rect.fromCircle(center: rect.center, radius: size.shortestSide / 4),
-        start,
-        end - start,
-        false,
-        paint,
+      canvas.drawPath(
+        Path()
+          ..moveTo(center.dx, center.dy)
+          ..arcTo(
+            Rect.fromCircle(center: center, radius: radius),
+            start,
+            end - start,
+            false,
+          )
+          ..close(),
+        Paint()..color = colors[i],
       );
     }
   }
 
   @override
   bool shouldRepaint(_PiePainter oldDelegate) {
-    return oldDelegate.colors != colors || oldDelegate.background != background;
+    if (oldDelegate.colors.length != colors.length) return true;
+    for (var i = 0; i < colors.length; i++) {
+      if (oldDelegate.colors[i] != colors[i]) return true;
+    }
+    return false;
   }
 }
