@@ -33,17 +33,19 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   RadioListTile<LeapDayRule>(
                     value: LeapDayRule.february28,
-                    title: Text('Отмечать 28 февраля'),
+                    title: Text('28 февраля'),
                   ),
                   RadioListTile<LeapDayRule>(
                     value: LeapDayRule.march1,
-                    title: Text('Отмечать 1 марта'),
+                    title: Text('1 марта'),
                   ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
                     child: Text(
-                      'В високосные годы 29 февраля празднуется как есть — '
-                      'настройка влияет только на обычные годы.',
+                      'День рождения 29 февраля бывает раз в четыре года. '
+                      'Этот выбор говорит, на какой день отмечать его '
+                      'в остальные годы. В високосные годы 29 февраля '
+                      'празднуется как есть.',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:birthday_calendar/core/providers/clock_provider.dart';
 import 'package:birthday_calendar/core/routing/app_router.dart';
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
@@ -55,6 +57,34 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
+  /// Выбор года из списка: стрелки листают по одному, а диалог — сразу.
+  Future<void> _pickYear() async {
+    final now = ref.read(clockProvider).now();
+    final first = now.year - 50;
+    final last = now.year + 10;
+    final chosen = await showDialog<int>(
+      context: context,
+      builder: (context) => _YearPicker(
+        current: _month.year,
+        first: first,
+        last: last,
+      ),
+    );
+    if (chosen == null) return;
+    setState(() => _month = DateTime(chosen, _month.month));
+  }
+
+  /// Выбор месяца: год при этом не меняется.
+  Future<void> _pickMonth() async {
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _MonthPicker(current: _month.month),
+    );
+    if (chosen == null) return;
+    setState(() => _month = DateTime(_month.year, chosen));
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -67,10 +97,28 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         // В годовом режиме виден весь год, в месячном — конкретный месяц.
-        title: Text(
-          _yearView
-              ? '${_month.year}'
-              : DateFormat('MMMM yyyy', 'ru').format(_month),
+        // Заголовок нажимаемый: стрелки листают по одному месяцу или году,
+        // а по нажатию можно выбрать сразу.
+        title: InkWell(
+          onTap: _yearView ? _pickYear : _pickMonth,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _yearView
+                      ? '${_month.year}'
+                      // Короткое название месяца: на узком экране
+                      // «Февраля 2026» обрезалось многоточием.
+                      : DateFormat('MMM yyyy', 'ru').format(_month),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.arrow_drop_down, size: 20),
+              ],
+            ),
+          ),
         ),
         actions: [
           IconButton(
@@ -267,47 +315,9 @@ class _MiniAvatars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final withAvatar = birthdays
-        .where((b) => b.birthday.hasCustomAvatar)
-        .toList();
-
-    if (withAvatar.isEmpty) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final item in birthdays.take(3))
-            Container(
-              width: 5,
-              height: 5,
-              margin: const EdgeInsets.symmetric(horizontal: 1),
-              decoration: BoxDecoration(
-                color: item.birthday.isImportant
-                    ? scheme.primary
-                    : scheme.tertiary,
-                shape: BoxShape.circle,
-              ),
-            ),
-        ],
-      );
-    }
-
-    return SizedBox(
-      height: 16,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final item in withAvatar.take(3))
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: BirthdayAvatar(
-                birthday: item.birthday,
-                size: 14,
-              ),
-            ),
-        ],
-      ),
-    );
+    // Тот же крупный круг со счётчиком, что и в годовом виде: мелкие точки
+    // не читались, а несколько дней рождения в один день не было видно.
+    return _DayMarker(birthdays: birthdays, size: 34);
   }
 }
 
@@ -407,6 +417,89 @@ class _DaySheet extends StatelessWidget {
               child: const Text('Закрыть'),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Выбор года одним списком, а не по одному стрелками.
+class _YearPicker extends StatelessWidget {
+  const _YearPicker({
+    required this.current,
+    required this.first,
+    required this.last,
+  });
+
+  final int current;
+  final int first;
+  final int last;
+
+  @override
+  Widget build(BuildContext context) {
+    final years = List.generate(last - first + 1, (i) => first + i);
+    return SimpleDialog(
+      title: const Text('Выберите год'),
+      children: [
+        SizedBox(
+          height: 320,
+          child: ListView.builder(
+            itemCount: years.length,
+            itemBuilder: (context, index) {
+              final year = years[index];
+              return ListTile(
+                title: Text('$year'),
+                selected: year == current,
+                onTap: () => Navigator.of(context).pop(year),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Выбор месяца: год при этом не меняется.
+class _MonthPicker extends StatelessWidget {
+  const _MonthPicker({required this.current});
+
+  final int current;
+
+  static const List<String> _names = [
+    'Январь',
+    'Февраль',
+    'Март',
+    'Апрель',
+    'Май',
+    'Июнь',
+    'Июль',
+    'Август',
+    'Сентябрь',
+    'Октябрь',
+    'Ноябрь',
+    'Декабрь',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(
+              'Выберите месяц',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          for (var i = 0; i < _names.length; i++)
+            ListTile(
+              title: Text(_names[i]),
+              selected: i + 1 == current,
+              onTap: () => Navigator.of(context).pop(i + 1),
+            ),
         ],
       ),
     );
@@ -587,7 +680,6 @@ class _MiniDay extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     final first = day.birthdays.isEmpty ? null : day.birthdays.first;
-    final showAvatar = first?.birthday.hasCustomAvatar ?? false;
 
     return InkWell(
       onTap: day.hasBirthdays ? () => onTap(day) : null,
@@ -621,9 +713,10 @@ class _MiniDay extends StatelessWidget {
           if (first != null)
             Positioned(
               bottom: 0,
-              child: showAvatar
-                  ? BirthdayAvatar(birthday: first.birthday, size: 14)
-                  : _Dot(important: first.birthday.isImportant, size: cellHeight),
+              child: _DayMarker(
+                birthdays: day.birthdays,
+                size: cellHeight,
+              ),
             ),
           ],
         ),
@@ -632,23 +725,115 @@ class _MiniDay extends StatelessWidget {
   }
 }
 
-class _Dot extends StatelessWidget {
-  const _Dot({required this.important, required this.size});
+/// Значок дня рождения под числом в календаре.
+///
+/// Раньше здесь была точка в 4–7 пикселей, её почти не видно. Теперь это
+/// круг во всю ширину ячейки. Когда в один день несколько праздников, круг
+/// делится на доли: по одной на человека, каждая своего цвета. Так видно и
+/// число, и то, что записи разные.
+class _DayMarker extends StatelessWidget {
+  const _DayMarker({required this.birthdays, required this.size});
 
-  final bool important;
+  final List<BirthdayWithOccurrence> birthdays;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final diameter = (size * 0.25).clamp(4.0, 7.0);
-    return Container(
+    if (birthdays.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final first = birthdays.first.birthday;
+    final hasPhoto = first.avatarFileName != null;
+
+    // Круг занимает всю ширину ячейки, но не выше половины: иначе он
+    // наезжает на число.
+    final diameter = (size * 0.42).clamp(9.0, 18.0);
+
+    if (hasPhoto) {
+      return BirthdayAvatar(birthday: first, size: diameter);
+    }
+
+    final colors = _colorsOf(context);
+    if (colors.length == 1) {
+      return _circle(color: colors.first, size: diameter);
+    }
+
+    // Делёный круг: каждая доля — один человек.
+    return SizedBox(
       width: diameter,
       height: diameter,
-      decoration: BoxDecoration(
-        color: important ? scheme.primary : scheme.tertiary,
-        shape: BoxShape.circle,
+      child: CustomPaint(
+        painter: _PiePainter(
+          colors: colors,
+          background: theme.colorScheme.surface,
+        ),
       ),
     );
+  }
+
+  /// Цвета по каждой записи: свой у каждого профиля.
+  ///
+  /// Если у записи цвет не задан, берётся акцент темы — иначе круг был бы
+  /// серым и сливался с ячейкой.
+  List<Color> _colorsOf(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final result = <Color>[];
+    for (final item in birthdays) {
+      final value = item.birthday.avatarColorValue;
+      final color = value != null ? Color(value) : scheme.primary;
+      if (!result.contains(color)) result.add(color);
+    }
+    if (result.isEmpty) result.add(scheme.primary);
+    return result;
+  }
+
+  /// Плоский круг одного цвета.
+  static Widget _circle({required Color color, required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+/// Рисует круг, разделённый на доли — по одной на день рождения.
+class _PiePainter extends CustomPainter {
+  const _PiePainter({required this.colors, required this.background});
+
+  final List<Color> colors;
+  final Color background;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      // Толщина штриха равна радиусу: круг получается залитым, а доли
+      // отделяются тонкими линиями зазора.
+      ..strokeWidth = size.shortestSide / 2
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawCircle(rect.center, size.shortestSide / 2, paint..color = background);
+
+    final total = colors.length;
+    const gap = 0.06; // доля оборота, свободная между секторами
+    for (var i = 0; i < total; i++) {
+      final start = -math.pi / 2 + (2 * math.pi * (i + gap) / total);
+      final end = -math.pi / 2 + (2 * math.pi * (i + 1 - gap) / total);
+      paint.color = colors[i];
+      canvas.drawArc(
+        Rect.fromCircle(center: rect.center, radius: size.shortestSide / 4),
+        start,
+        end - start,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PiePainter oldDelegate) {
+    return oldDelegate.colors != colors || oldDelegate.background != background;
   }
 }

@@ -5,6 +5,7 @@ import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
 import 'package:birthday_calendar/core/utils/leap_day_rule.dart';
 import 'package:birthday_calendar/features/birthdays/data/birthday_model.dart';
 import 'package:birthday_calendar/features/birthdays/data/avatar_storage.dart';
+import 'package:birthday_calendar/features/birthdays/data/avatar_color.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
@@ -84,6 +85,7 @@ class BirthdayRepository {
       birthYear: birthYear,
       note: note.trim(),
       isImportant: isImportant,
+      avatarColorValue: AvatarColor.random(),
       createdAt: now,
       updatedAt: now,
     );

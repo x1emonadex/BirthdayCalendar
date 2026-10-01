@@ -523,8 +523,8 @@ void main() {
       final text = NotificationPlanBuilder.textFor(
         groups.values.first,
       );
-      expect(text.title, contains('3 дня'));
-      expect(text.body, 'Аня, Борис, Иван, марта 15');
+      expect(text.title, 'Дни рождения: 3');
+      expect(text.body, 'Аня, Борис, Иван — через 7 дней, марта 15');
     });
 
     test('один день рождения сохраняет прежние тексты', () {
@@ -534,8 +534,8 @@ void main() {
         settings: settings.copyWith(daysBefore: {7}),
       );
       final text = NotificationPlanBuilder.textFor(events);
-      expect(text.title, 'Через 7 дней — Аня');
-      expect(text.body, 'Аня, марта 15');
+      expect(text.title, 'День рождения');
+      expect(text.body, 'Аня — через 7 дней, марта 15');
     });
 
     test('в день рождения заголовок без имени', () {
@@ -548,8 +548,8 @@ void main() {
           .where((e) => e.status != NotificationStatus.skipped)
           .toList();
       final text = NotificationPlanBuilder.textFor(live);
-      expect(text.title, 'Сегодня день рождения');
-      expect(text.body, 'Аня, марта 15');
+      expect(text.title, 'День рождения');
+      expect(text.body, 'Аня — сегодня, марта 15');
     });
 
     test('разные даты не склеиваются в одно уведомление', () {
@@ -595,8 +595,9 @@ void main() {
         items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 17))],
         settings: settings.copyWith(daysBefore: {7}),
       );
-      expect(events.single.title, 'Через 7 дней — Аня');
-      expect(events.single.body, 'Аня, марта 17');
+      final text = NotificationPlanBuilder.textFor(events);
+      expect(text.title, 'День рождения');
+      expect(text.body, 'Аня — через 7 дней, марта 17');
     });
 
     test('за один день — правильное склонение', () {
@@ -605,7 +606,9 @@ void main() {
         items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 11))],
         settings: settings.copyWith(daysBefore: {1}),
       );
-      expect(events.single.title, 'Через 1 день — Аня');
+      final text = NotificationPlanBuilder.textFor(events);
+      expect(text.title, 'День рождения');
+      expect(text.body, 'Аня — через 1 день, марта 11');
     });
 
     test('в день рождения — особый заголовок', () {
@@ -614,7 +617,9 @@ void main() {
         items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 17))],
         settings: settings.copyWith(daysBefore: {0}),
       );
-      expect(events.single.title, 'Сегодня день рождения');
+      final text = NotificationPlanBuilder.textFor(events);
+      expect(text.title, 'День рождения');
+      expect(text.body, 'Аня — сегодня, марта 17');
     });
   });
 }

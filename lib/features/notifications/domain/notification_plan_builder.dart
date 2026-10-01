@@ -220,21 +220,23 @@ class NotificationPlanBuilder {
     final date =
         '${NotificationEvent.monthNames[occurrence.month - 1]} '
         '${occurrence.day}';
-    final title = when.daysBefore == 0
-        ? 'Сегодня день рождения'
-        : 'Через ${when.daysBefore} '
-            '${BirthdayDateUtils.pluralDays(when.daysBefore)}';
+
+    // Заголовок отвечает на вопрос «что», тело — «у кого и когда». Так
+    // текст читается сразу, а не как «Сегодня день рождения: 3 дня».
+    final when0 = when.daysBefore == 0
+        ? 'сегодня, $date'
+        : 'через ${when.daysBefore} '
+            '${BirthdayDateUtils.pluralDays(when.daysBefore)}, $date';
 
     if (names.length == 1) {
       return NotificationText(
-        title: when.daysBefore == 0 ? title : '$title — ${names.first}',
-        body: '${names.first}, $date',
+        title: 'День рождения',
+        body: '${names.first} — $when0',
       );
     }
     return NotificationText(
-      title: '$title: ${names.length} '
-          '${BirthdayDateUtils.pluralDays(names.length)}',
-      body: '${names.join(', ')}, $date',
+      title: 'Дни рождения: ${names.length}',
+      body: '${names.join(', ')} — $when0',
     );
   }
 
