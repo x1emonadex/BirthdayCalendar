@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Эмулятор: Birthday_API_36",
+      "type": "shell",
+      "command": "E:\\BirthdayCalendar\\tools\\emu.bat",
+      "args": [
+        "-avd",
+        "Birthday_API_36",
+        "-gpu",
+        "swiftshader_indirect",
+        "-no-snapshot-load"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}
