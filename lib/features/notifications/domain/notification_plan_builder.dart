@@ -16,6 +16,14 @@ enum NotificationStatus {
   skipped,
 }
 
+/// Тексты одного уведомления.
+class NotificationText {
+  const NotificationText({required this.title, required this.body});
+
+  final String title;
+  final String body;
+}
+
 /// Одно уведомление в расписании.
 class NotificationEvent {
   const NotificationEvent({
@@ -51,10 +59,10 @@ class NotificationEvent {
 
   /// Дата в формате «марта 15» — так читается в уведомлении на русском.
   String get dateLabel {
-    return '${_monthNames[occurrenceDate.month - 1]} ${occurrenceDate.day}';
+    return '${monthNames[occurrenceDate.month - 1]} ${occurrenceDate.day}';
   }
 
-  /// Заголовок уведомления — зависит от того, когда оно сработает.
+  /// Заголовок уведомления — зависит от того, когда оно сработало.
   String get title {
     if (daysBefore == 0) return 'Сегодня день рождения';
     return 'Через $daysBefore '
@@ -63,7 +71,14 @@ class NotificationEvent {
 
   String get body => '$name, $dateLabel';
 
-  static const List<String> _monthNames = [
+  /// Собирает тексты уведомления из нескольких событий одного дня.
+  ///
+  /// Раньше каждое событие планировалось отдельным уведомлением, но Android
+  /// показывал только последнее: несколько дней рождения в один день
+  /// выглядели как одна запись. Теперь события с одинаковым [fireAt]
+  /// объединяются в одно уведомление, где перечислены все имени.
+  /// Месяцы родительного падежа для дат в уведомлениях.
+  static const List<String> monthNames = [
     'января',
     'февраля',
     'марта',
@@ -181,6 +196,62 @@ class NotificationPlanBuilder {
     return events
         .where((e) => e.status == NotificationStatus.immediate)
         .toList();
+  }
+
+  /// Собирает тексты уведомления из нескольких событий одного момента.
+  ///
+  /// Раньше каждое событие планировалось отдельным уведомлением, но Android
+  /// показывал только последнее: несколько дней рождения в один день
+  /// выглядели как одна запись. Теперь события с одинаковым
+  /// [NotificationEvent.fireAt] объединяются в одно уведомление, где
+  /// перечислены все имена.
+  ///
+  /// Дата праздника берётся из самих событий, а не передаётся отдельно:
+  /// так её нельзя перепутать с датой срабатывания.
+  static NotificationText textFor(List<NotificationEvent> events) {
+    final names = <String>[];
+    for (final event in events) {
+      if (!names.contains(event.name)) names.add(event.name);
+    }
+    names.sort();
+
+    final when = events.first;
+    final occurrence = when.occurrenceDate;
+    final date =
+        '${NotificationEvent.monthNames[occurrence.month - 1]} '
+        '${occurrence.day}';
+    final title = when.daysBefore == 0
+        ? 'Сегодня день рождения'
+        : 'Через ${when.daysBefore} '
+            '${BirthdayDateUtils.pluralDays(when.daysBefore)}';
+
+    if (names.length == 1) {
+      return NotificationText(
+        title: when.daysBefore == 0 ? title : '$title — ${names.first}',
+        body: '${names.first}, $date',
+      );
+    }
+    return NotificationText(
+      title: '$title: ${names.length} '
+          '${BirthdayDateUtils.pluralDays(names.length)}',
+      body: '${names.join(', ')}, $date',
+    );
+  }
+
+  /// Группирует события, которые должны сработать в один момент.
+  ///
+  /// Несколько дней рождения могут выпасть на одну дату. Если показать
+  /// отдельное уведомление для каждого, Android отобразит только
+  /// последнее, и часть имён просто пропадёт. Поэтому события с
+  /// одинаковым [NotificationEvent.fireAt] собираются в одну группу.
+  static Map<DateTime, List<NotificationEvent>> groupByFireAt(
+    List<NotificationEvent> events,
+  ) {
+    final grouped = <DateTime, List<NotificationEvent>>{};
+    for (final event in events) {
+      grouped.putIfAbsent(event.fireAt, () => []).add(event);
+    }
+    return grouped;
   }
 
   /// Определяет статус по времени срабатывания.

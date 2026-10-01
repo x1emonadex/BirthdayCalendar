@@ -66,23 +66,45 @@ class NotificationScheduler {
     await service.cancelAll();
 
     final scheduled = NotificationPlanBuilder.scheduledOnly(events);
-    if (scheduled.isNotEmpty) {
-      await service.scheduleAll(scheduled);
-    }
+    if (scheduled.isNotEmpty) await service.scheduleAll(build(scheduled));
 
     // Просроченные уведомления показываем сразу: на обеих платформах
     // ждать их нельзя, а пользователь всё равно должен узнать о празднике.
-    for (final event in NotificationPlanBuilder.immediateOnly(events)) {
-      await service.showNow(event);
+    final immediate = NotificationPlanBuilder.immediateOnly(events);
+    if (immediate.isNotEmpty) {
+      for (final notification in build(immediate)) {
+        await service.showNow(notification);
+      }
     }
 
     return (await service.pending()).length;
   }
 
-  /// Планирует всё и сразу показывает [event] — для кнопки «Проверить».
-  Future<void> showTest(NotificationEvent event) async {
+  /// Схлопывает события одного момента в готовые уведомления.
+  ///
+  /// Идентификатор берётся у первого события группы: он уже учитывает
+  /// срок в днях и остаётся стабильным между запусками.
+  static List<ScheduledNotification> build(List<NotificationEvent> events) {
+    final result = <ScheduledNotification>[];
+    NotificationPlanBuilder.groupByFireAt(events).forEach((fireAt, group) {
+      final text = NotificationPlanBuilder.textFor(group);
+      result.add(
+        ScheduledNotification(
+          id: group.first.id,
+          fireAt: fireAt,
+          title: text.title,
+          body: text.body,
+          payload: group.first.birthdayId,
+        ),
+      );
+    });
+    return result;
+  }
+
+  /// Планирует всё и сразу показывает уведомление — для кнопки «Проверить».
+  Future<void> showTest(ScheduledNotification notification) async {
     final service = _ref.read(notificationServiceProvider);
-    await service.showNow(event);
+    await service.showNow(notification);
   }
 
   /// Просит разрешение на уведомления.

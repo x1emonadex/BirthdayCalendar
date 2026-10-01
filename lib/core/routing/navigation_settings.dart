@@ -47,6 +47,35 @@ class NavigationSettings {
   int get hashCode => Object.hashAll(tabs);
 }
 
+/// Можно ли скрыть вкладку.
+///
+/// «Настройки» скрыть нельзя: вкладка ведёт к экрану, которым настраивается
+/// всё, включая состав вкладок. Скрытая «Настройка» означала бы, что вернуть
+/// её уже нечем. Последнюю оставшуюся вкладку тоже оставляем: иначе
+/// навигация станет пустой.
+bool canHideTab(NavigationSettings settings, String id) {
+  if (id == TabId.settings) return false;
+  return settings.tabs.length > 1;
+}
+
+/// Возвращает новый состав вкладок после переключения видимости.
+NavigationSettings withVisibility(
+  NavigationSettings settings,
+  String id,
+  bool visible,
+) {
+  if (!visible && !canHideTab(settings, id)) return settings;
+
+  final tabs = List<String>.from(settings.tabs);
+  if (visible) {
+    if (tabs.contains(id)) return settings;
+    tabs.add(id);
+  } else {
+    tabs.remove(id);
+  }
+  return NavigationSettings(tabs: tabs);
+}
+
 final NotifierProvider<NavigationController, NavigationSettings>
     navigationControllerProvider =
     NotifierProvider<NavigationController, NavigationSettings>(
@@ -73,15 +102,9 @@ class NavigationController extends Notifier<NavigationSettings> {
   /// Показывает или скрывает вкладку. Последнюю видимую скрыть нельзя —
   /// иначе навигации станет некуда деться.
   Future<void> setVisible(String id, bool visible) async {
-    final current = List<String>.from(state.tabs);
-    if (visible) {
-      if (current.contains(id)) return;
-      current.add(id);
-    } else {
-      if (!current.contains(id) || current.length == 1) return;
-      current.remove(id);
-    }
-    await _save(NavigationSettings(tabs: current));
+    final next = withVisibility(state, id, visible);
+    if (next == state) return;
+    await _save(next);
   }
 
   /// Сдвигает вкладку на одну позицию вверх или вниз.

@@ -1,5 +1,4 @@
 import 'package:birthday_calendar/features/notifications/data/notification_service.dart';
-import 'package:birthday_calendar/features/notifications/domain/notification_plan_builder.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -82,30 +81,30 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> scheduleAll(List<NotificationEvent> events) async {
+  Future<void> scheduleAll(List<ScheduledNotification> notifications) async {
     if (kIsWeb) return;
 
-    for (final event in events) {
+    for (final notification in notifications) {
       await _plugin.zonedSchedule(
-        id: event.id,
-        title: event.title,
-        body: event.body,
-        scheduledDate: tz.TZDateTime.from(event.fireAt, tz.local),
+        id: notification.id,
+        title: notification.title,
+        body: notification.body,
+        scheduledDate: tz.TZDateTime.from(notification.fireAt, tz.local),
         notificationDetails: _details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        payload: event.birthdayId,
+        payload: notification.payload,
       );
     }
   }
 
   @override
-  Future<void> showNow(NotificationEvent event) async {
+  Future<void> showNow(ScheduledNotification notification) async {
     await _plugin.show(
-      id: event.id,
-      title: event.title,
-      body: event.body,
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
       notificationDetails: _details,
-      payload: event.birthdayId,
+      payload: notification.payload,
     );
   }
 

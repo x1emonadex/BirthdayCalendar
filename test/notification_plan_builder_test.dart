@@ -501,6 +501,94 @@ void main() {
   });
 
   group('тексты уведомления', () {
+    test('несколько дней рождения в один день — одно уведомление', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 10),
+        items: [
+          birthday(id: 'a', name: 'Аня', occurrenceDate: d(2026, 3, 15)),
+          birthday(id: 'b', name: 'Иван', occurrenceDate: d(2026, 3, 15)),
+          birthday(id: 'c', name: 'Борис', occurrenceDate: d(2026, 3, 15)),
+        ],
+        settings: settings.copyWith(daysBefore: {7}),
+      );
+
+      final groups = NotificationPlanBuilder.groupByFireAt(events);
+      expect(
+        groups,
+        hasLength(1),
+        reason: 'три записи на одну дату — один момент срабатывания',
+      );
+      expect(groups.values.first, hasLength(3));
+
+      final text = NotificationPlanBuilder.textFor(
+        groups.values.first,
+      );
+      expect(text.title, contains('3 дня'));
+      expect(text.body, 'Аня, Борис, Иван, марта 15');
+    });
+
+    test('один день рождения сохраняет прежние тексты', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 10),
+        items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 15))],
+        settings: settings.copyWith(daysBefore: {7}),
+      );
+      final text = NotificationPlanBuilder.textFor(events);
+      expect(text.title, 'Через 7 дней — Аня');
+      expect(text.body, 'Аня, марта 15');
+    });
+
+    test('в день рождения заголовок без имени', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 15),
+        items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 15))],
+        settings: settings.copyWith(daysBefore: {0}),
+      );
+      final live = events
+          .where((e) => e.status != NotificationStatus.skipped)
+          .toList();
+      final text = NotificationPlanBuilder.textFor(live);
+      expect(text.title, 'Сегодня день рождения');
+      expect(text.body, 'Аня, марта 15');
+    });
+
+    test('разные даты не склеиваются в одно уведомление', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 10),
+        items: [
+          birthday(id: 'a', name: 'Аня', occurrenceDate: d(2026, 3, 15)),
+          birthday(id: 'b', name: 'Иван', occurrenceDate: d(2026, 3, 16)),
+        ],
+        settings: settings.copyWith(daysBefore: {0}),
+      );
+      expect(NotificationPlanBuilder.groupByFireAt(events), hasLength(2));
+    });
+
+    test('группировка объединяет только совпадающие моменты', () {
+      final at = d(2026, 3, 8, 9);
+      final later = d(2026, 3, 8, 10);
+      NotificationEvent e(int id, String name, DateTime fireAt) =>
+          NotificationEvent(
+            id: id,
+            birthdayId: 'b$id',
+            profileId: 'p',
+            name: name,
+            daysBefore: 7,
+            occurrenceDate: d(2026, 3, 15),
+            fireAt: fireAt,
+            status: NotificationStatus.scheduled,
+          );
+
+      final groups = NotificationPlanBuilder.groupByFireAt([
+        e(1, 'Аня', at),
+        e(2, 'Иван', at),
+        e(3, 'Олег', later),
+      ]);
+      expect(groups, hasLength(2));
+      expect(groups[at], hasLength(2));
+      expect(groups[later], hasLength(1));
+    });
+
     test('за неделю — заголовок со сроком', () {
       final events = NotificationPlanBuilder.buildPlan(
         now: d(2026, 3, 10),

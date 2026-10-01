@@ -1,5 +1,3 @@
-import 'package:birthday_calendar/features/notifications/domain/notification_plan_builder.dart';
-
 /// Идентификатор канала уведомлений в Android.
 const String kNotificationChannelId = 'birthday_reminders';
 
@@ -19,10 +17,13 @@ abstract interface class NotificationService {
   Future<void> cancelAll();
 
   /// Планирует уведомления на будущее.
-  Future<void> scheduleAll(List<NotificationEvent> events);
+  ///
+  /// Принимает готовые группы: по одной на каждый момент срабатывания.
+  /// Несколько дней рождения в один день уже объединены в заголовке.
+  Future<void> scheduleAll(List<ScheduledNotification> notifications);
 
   /// Показывает уведомление немедленно, минуя расписание.
-  Future<void> showNow(NotificationEvent event);
+  Future<void> showNow(ScheduledNotification notification);
 
   /// Запланированные уведомления — для самопроверки и отладки.
   Future<List<PendingNotification>> pending();
@@ -39,4 +40,22 @@ class PendingNotification {
 
   final int id;
   final String title;
+}
+
+/// Готовое к отправке уведомление: момент срабатывания, идентификатор и
+/// уже собранные тексты.
+class ScheduledNotification {
+  const ScheduledNotification({
+    required this.id,
+    required this.fireAt,
+    required this.title,
+    required this.body,
+    required this.payload,
+  });
+
+  final int id;
+  final DateTime fireAt;
+  final String title;
+  final String body;
+  final String payload;
 }

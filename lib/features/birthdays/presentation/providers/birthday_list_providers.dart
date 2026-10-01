@@ -124,9 +124,11 @@ final FutureProvider<List<BirthdayWithOccurrence>> allYearsBirthdaysProvider =
 });
 
 /// Одна запись по идентификатору — для экрана редактирования.
-final FutureProviderFamily<BirthdayWithOccurrence?, String>
-    birthdayByIdProvider = FutureProvider.family(
-  (ref, id) async {
+final AutoDisposeFutureProviderFamily<BirthdayWithOccurrence?, String>
+    // autoDispose обязателен: без него family-кэш живёт весь сеанс, и
+    // повторное открытие формы показывало бы данные до последней правки.
+    birthdayByIdProvider = FutureProvider.autoDispose.family(
+  (ref, String id) async {
     final repository = ref.watch(birthdayRepositoryProvider);
     final now = ref.watch(clockProvider).now();
     final birthday = await repository.findById(id);

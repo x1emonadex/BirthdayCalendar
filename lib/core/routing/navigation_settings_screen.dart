@@ -20,8 +20,9 @@ class NavigationSettingsScreen extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              'Перетащите вкладку за стрелку или воспользуйтесь кнопками. '
-              'Скрытые вкладки не показываются в навигации.',
+              'Порядок можно менять стрелками или перетаскиванием. '
+              'Вкладку можно скрыть, кроме «Настроек»: '
+              'вернуть их потом будет нечем.',
               style: TextStyle(fontSize: 12),
             ),
           ),
@@ -41,6 +42,9 @@ class NavigationSettingsScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final section = sections[index];
               final isOnly = sections.length == 1;
+              // «Настройки» скрыть нельзя: это единственный вход в экран,
+              // которым настраивается всё остальное, включая состав вкладок.
+              final locked = section.id == TabId.settings;
               return ListTile(
                 key: ValueKey(section.id),
                 leading: Icon(section.icon),
@@ -65,8 +69,9 @@ class NavigationSettingsScreen extends ConsumerWidget {
                     Switch(
                       value: true,
                       // Последнюю вкладку скрыть нельзя: навигация
-                      // останется без единого пункта.
-                      onChanged: isOnly
+                      // останется без единого пункта. И «Настройки»
+                      // нельзя: иначе их больше не включить.
+                      onChanged: isOnly || locked
                           ? null
                           : (value) => controller.setVisible(section.id, value),
                     ),

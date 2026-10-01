@@ -113,6 +113,9 @@ class BirthdayActions {
     _ref.invalidate(allBirthdaysProvider);
     _ref.invalidate(upcomingBirthdaysProvider);
     _ref.invalidate(upcomingSectionsProvider);
+    // Календарь тоже читает дни рождения. Без этой строки новая запись
+    // появлялась в списке, но не в календаре до перезапуска приложения.
+    _ref.invalidate(allYearsBirthdaysProvider);
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:birthday_calendar/features/notifications/domain/notification_plan_builder.dart';
+import 'package:birthday_calendar/features/notifications/data/notification_service.dart';
 import 'package:birthday_calendar/features/notifications/domain/notification_settings.dart';
 import 'package:birthday_calendar/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
@@ -226,27 +227,31 @@ class _NotificationSettingsScreenState
 
   Future<void> _showTest() async {
     final now = DateTime.now();
-    final event = NotificationEvent(
+    final event = ScheduledNotification(
       id: NotificationPlanBuilder.stableNotificationId(
         profileId: 'test',
         birthdayId: 'test',
         daysBefore: 0,
       ),
-      birthdayId: 'test',
-      profileId: 'test',
-      name: 'Тест',
-      daysBefore: 1,
-      occurrenceDate: now.add(const Duration(days: 1)),
       fireAt: now,
-      status: NotificationStatus.immediate,
+      title: 'Тестовое уведомление',
+      body: 'Так выглядит напоминание о дне рождения.',
+      payload: 'test',
     );
     await ref.read(notificationSchedulerProvider).showTest(event);
     _snack('Тестовое уведомление отправлено');
   }
 
   Future<void> _recalculate() async {
-    final count = await ref.read(notificationSchedulerProvider).refresh();
-    _snack('Запланировано уведомлений: $count');
+    setState(() => _saving = true);
+    try {
+      final count = await ref.read(notificationSchedulerProvider).refresh();
+      _snack('Запланировано уведомлений: $count');
+    } catch (error) {
+      _snack('Не удалось пересчитать: $error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _snack(String message) {

@@ -1,5 +1,6 @@
 import 'package:birthday_calendar/core/providers/database_provider.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
+import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_list_providers.dart';
 import 'package:birthday_calendar/features/export_import/data/birthday_importer.dart';
 import 'package:birthday_calendar/features/export_import/data/csv_exporter.dart';
 import 'package:birthday_calendar/features/export_import/data/excel_exporter.dart';
@@ -81,6 +82,15 @@ class TransferController extends Notifier<TransferState> {
       final parsed = ImportParser.parse(FileExportService.readTable(bytes));
 
       final result = await importer.import(parsed);
+      // Импорт идёт в обход BirthdayActions, поэтому списки и календарь
+      // нужно обновить вручную. Иначе импортированные дни рождения были
+      // видны только после перезапуска приложения.
+      if (result.createdCount > 0 || result.updatedCount > 0) {
+        ref.invalidate(allBirthdaysProvider);
+        ref.invalidate(upcomingBirthdaysProvider);
+        ref.invalidate(upcomingSectionsProvider);
+        ref.invalidate(allYearsBirthdaysProvider);
+      }
       state = TransferState(lastResult: result);
       return result;
     } finally {
