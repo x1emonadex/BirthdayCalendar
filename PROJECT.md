@@ -45,6 +45,25 @@ E:\BirthdayCalendar\tools\fl.bat build windows --release
 Публикация релиза идёт через GitHub API скриптом на PowerShell: токен
 берётся из Git Credential Manager, отдельный PAT не нужен.
 
+## Git и GitHub
+
+Настраивать ничего не нужно: учётные данные лежат на диске, а не в
+настройках чата. Уже сделано:
+
+- `origin` указывает на `https://github.com/x1emonadex/BirthdayCalendar.git`
+- `credential.helper = manager` — токен хранит Windows, подставляется сам
+- `user.name = x1emonadex`, `user.email` настроены глобально
+- `safe.directory` прописаны для папок с Flutter SDK
+
+**Обычный `git push` работает сразу.** Если новый агент говорит, что не
+может залить на GitHub, — это неправда: токен уже есть, надо только
+проверить `git push -u origin main`.
+
+Для публикации релиза через API: токен берётся командой
+`git-credential-manager get` с файлом запроса, значение нигде не
+печатается. Отдельный Personal Access Token не нужен, и созданный
+ранее можно удалить.
+
 ## Стек
 
 Flutter 3.47 / Dart 3.13 · drift 2.28 · flutter_riverpod 2.6 ·
