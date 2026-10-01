@@ -1,16 +1,53 @@
-# birthday_calendar
+# Birthday Calendar
 
-A new Flutter project.
+Календарь дней рождения. Одно приложение для Android и Windows.
 
-## Getting Started
+## Что умеет
 
-This project is a starting point for a Flutter application.
+- **Ближайшие** — дни рождения по трём разделам: сегодня, на неделе, позже.
+- **Календарь** — месячный и годовой вид, 12 месяцев на одном экране.
+- **Все** — поиск, фильтр «только важные», 4 сортировки, свайп-удаление.
+- **Настройки** — тема и цвет, вкладки, напоминания, перенос и копия.
 
-A few resources to get you started if this is your first Flutter project:
+## Функции
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Экспорт в Excel и CSV, импорт с дедупликацией по UUID и по имени с датой.
+- Резервная копия в JSON: восстановление заменяет список целиком.
+- Уведомления с настраиваемыми сроками: кроме «за неделю», «за день» и
+  «в день рождения» можно добавить любое число дней.
+- Аватары: фотография или цвет у каждого дня рождения.
+- Тёмная, светлая и AMOLED-тема, 6 акцентов плюс произвольный цвет.
+- Перенос 29 февраля по настройке: на 28 февраля или на 1 марта.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Сборка
+
+```sh
+flutter pub get
+
+# Android
+flutter build apk --release
+
+# Windows (нужен Developer Mode для симлинков)
+flutter build windows --release
+```
+
+## Тесты
+
+```sh
+flutter test
+```
+
+254 теста покрывают логику дат (включая 29 февраля и переход через Новый
+год), репозиторий на реальной БД в памяти, парсер импорта, планировщик
+уведомлений, календарь и тему.
+
+## Стек
+
+Flutter 3.47 / Dart 3.13 · Drift · Riverpod · GoRouter ·
+flutter_local_notifications · excel · image_picker · intl
+
+## Известные ограничения
+
+- Синхронизации между устройствами нет.
+- Без MSIX-упаковки на Windows `cancelAll` и `pending()` не работают:
+  это ограничение плагина уведомлений, не ошибка приложения.
