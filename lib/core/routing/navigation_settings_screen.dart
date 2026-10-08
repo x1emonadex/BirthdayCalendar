@@ -31,7 +31,10 @@ class NavigationSettingsScreen extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: sections.length,
             onReorderItem: (oldIndex, newIndex) {
-              if (newIndex > oldIndex) newIndex -= 1;
+              // onReorderItem уже отдаёт конечную позицию: он сам учитывает
+              // сдвиг после изъятия элемента. Дополнительно уменьшать
+              // newIndex не нужно — иначе перетаскивание вниз на одну
+              // позицию не делало бы ничего.
               final id = sections[oldIndex].id;
               // Сдвигаем на разницу позиций — это один ход вверх или вниз.
               final steps = newIndex > oldIndex ? newIndex - oldIndex : oldIndex - newIndex;

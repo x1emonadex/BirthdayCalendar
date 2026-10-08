@@ -20,7 +20,9 @@ class BirthdayTile extends StatelessWidget {
     final theme = Theme.of(context);
     final birthday = item.birthday;
     final occurrence = item.occurrence;
-    final dateLabel = DateFormat('d MMMM').format(occurrence.date);
+    // Локаль указываем явно: без неё DateFormat берёт системную ('en_US'),
+    // и месяц печатается по-английски — «15 September» вместо «15 сентября».
+    final dateLabel = DateFormat('d MMMM', 'ru').format(occurrence.date);
 
     return ListTile(
       onTap: onTap,

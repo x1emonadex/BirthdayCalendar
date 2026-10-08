@@ -300,7 +300,12 @@ class BirthdayRepository {
     await (_db.update(_db.birthdayEntries)..where((t) => t.id.equals(id)))
         .write(updated.toEntry());
 
-    if (oldFile != null) await AvatarStorage.delete(oldFile);
+    // Файл аватара называется по id записи, поэтому при замене фотографии
+    // новое имя совпадает со старым. Удалять «старый» файл в этом случае
+    // нельзя — иначе снесём только что сохранённую фотографию.
+    if (oldFile != null && oldFile != fileName) {
+      await AvatarStorage.delete(oldFile);
+    }
     return updated;
   }
 

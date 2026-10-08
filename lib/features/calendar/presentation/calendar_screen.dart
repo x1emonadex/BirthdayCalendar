@@ -347,7 +347,7 @@ class _DaySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final label = DateFormat('d MMMM').format(day.date);
+    final label = DateFormat('d MMMM', 'ru').format(day.date);
 
     return SafeArea(
       child: Column(
