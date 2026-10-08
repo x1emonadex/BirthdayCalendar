@@ -12,12 +12,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// Запуск: flutter test tool/app_icon.dart — файл пишет готовые PNG прямо в
 /// android/app/src/main/res.
 class AppIconPainter extends CustomPainter {
-  const AppIconPainter({this.adaptive = false});
+  const AppIconPainter({this.adaptive = false, this.circleRow = 1});
 
   /// `true` — слой переднего плана адаптивной иконки. Лаунчер обрезает её по
   /// своей форме, поэтому рисунок вписывается в безопасную зону и получается
   /// мельче, чем в обычной иконке.
   final bool adaptive;
+
+  /// В каком ряду сетки обведён день: 0 — верхний, 1 — средний.
+  final int circleRow;
 
   static const Color _card = Color(0xFFFFFFFF);
   static const Color _cardEdge = Color(0xFFDCDCE8);
@@ -117,9 +120,11 @@ class AppIconPainter extends CustomPainter {
       }
     }
 
-    // Обведён средний день — как обводят дату в бумажном календаре.
-    final target = cellRect(1, 1);
-    final radius = _cellSize * 0.7071 - _cellRadius * (1.4142 - 1) + 0.004;
+    // Обведён один день — как обводят дату в бумажном календаре.
+    final target = cellRect(circleRow, 1);
+    // Овал должен накрыть клетку целиком вместе с её скруглёнными углами:
+    // при вытянутом по горизонтали овале для этого нужен запас побольше.
+    const radius = _cellSize * 0.7071 - _cellRadius * (1.4142 - 1) + 0.0117;
     canvas.drawPath(
       _handDrawnCircle(target.center, s(radius)),
       Paint()
@@ -131,12 +136,13 @@ class AppIconPainter extends CustomPainter {
     );
   }
 
-  /// Кружок «от руки»: окружность с разрывом сверху чуть правее макушки,
-  /// неровным радиусом и без наклона — как быстрый штрих маркером.
+  /// Кружок «от руки»: вытянутый по горизонтали овал с нахлёстом вверху —
+  /// конец штриха заходит внутрь и не смыкается с началом.
   Path _handDrawnCircle(Offset center, double radius) {
-    const segments = 72;
-    const startAngle = -1.22;
-    const sweep = 6.283185307179586 - 0.44;
+    const segments = 80;
+    // Штрих начинается слева сверху, идёт по часовой и заходит за начало.
+    const startAngle = -1.95;
+    const sweep = 6.283185307179586 + 0.32;
     final path = Path();
 
     for (var i = 0; i <= segments; i++) {
@@ -147,8 +153,8 @@ class AppIconPainter extends CustomPainter {
           1 + 0.025 * math.sin(3 * t + 0.8) + 0.015 * math.sin(7 * t + 1.6);
       final rr = radius * wobble;
       final point = Offset(
-        center.dx + rr * math.cos(t) * 1.03,
-        center.dy + rr * math.sin(t) * 0.97,
+        center.dx + rr * math.cos(t) * 1.08,
+        center.dy + rr * math.sin(t) * 0.94,
       );
       if (i == 0) {
         path.moveTo(point.dx, point.dy);
@@ -262,7 +268,7 @@ class AppIconPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(AppIconPainter oldDelegate) =>
-      oldDelegate.adaptive != adaptive;
+      oldDelegate.adaptive != adaptive || oldDelegate.circleRow != circleRow;
 }
 
 Future<void> _write(String path, int size, {required bool adaptive}) async {
