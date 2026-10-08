@@ -3,6 +3,7 @@ import 'package:birthday_calendar/core/providers/clock_provider.dart';
 import 'package:birthday_calendar/core/providers/database_provider.dart';
 import 'package:birthday_calendar/core/theme/app_theme.dart';
 import 'package:birthday_calendar/features/birthdays/data/birthday_repository.dart';
+import 'package:birthday_calendar/features/birthdays/presentation/widgets/birthday_avatar.dart';
 import 'package:birthday_calendar/features/calendar/presentation/calendar_screen.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-/// День с днём рождения обязан быть виден в сетке цветом, а не только
-/// кружком под числом: на это жаловались в годовом виде, где заливка была
-/// нейтральной ступенью и месяц выглядел пустым.
+/// В календаре день с днём рождения отмечается фоном, а не кружком-«стикером»
+/// под числом. Когда в один день несколько праздников, фон делится на доли —
+/// по одной на человека. Кружок и аватар из сетки убраны.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -32,84 +33,99 @@ void main() {
         child: MaterialApp(theme: theme, home: const CalendarScreen()),
       );
 
-  /// Две записи в сентябре 2026: 15-го и 30-го.
+  /// Иван и Аня — на 15 сентября, Пётр — на 30 сентября.
   Future<void> seed() async {
     final repo = BirthdayRepository(db);
     await repo.create(name: 'Иван', day: 15, month: 9);
-    await repo.create(name: 'Аня', day: 30, month: 9);
+    await repo.create(name: 'Аня', day: 15, month: 9);
+    await repo.create(name: 'Пётр', day: 30, month: 9);
   }
 
-  /// Цвета заливки всех ячеек-`Container` без прозрачных.
-  List<Color> tintedCells(WidgetTester tester) {
-    final result = <Color>[];
-    for (final container in tester.widgetList<Container>(
-      find.byType(Container),
-    )) {
-      final decoration = container.decoration;
-      if (decoration is BoxDecoration &&
-          decoration.color != null &&
-          decoration.color != Colors.transparent) {
-        result.add(decoration.color!);
-      }
-    }
-    return result;
-  }
+  /// Ячейка дня месяца (в месячном виде число дня встречается один раз).
+  Finder cellOf(String dayText) => find
+      .ancestor(of: find.text(dayText), matching: find.byType(Container))
+      .first;
 
-  /// Цвет заливки конкретного дня месяца (по числу в сетке).
-  Color? dayTint(WidgetTester tester, String dayText) {
-    final containers = tester.widgetList<Container>(
-      find.ancestor(of: find.text(dayText), matching: find.byType(Container)),
+  /// Цвета долей фона внутри ячейки — по одному на человека.
+  List<Color> segmentsIn(WidgetTester tester, Finder cell) {
+    final boxes = tester.widgetList<ColoredBox>(
+      find.descendant(of: cell, matching: find.byType(ColoredBox)),
     );
-    for (final container in containers) {
-      final decoration = container.decoration;
-      if (decoration is BoxDecoration && decoration.color != null) {
-        return decoration.color;
-      }
-    }
-    return null;
+    return [for (final box in boxes) box.color];
   }
 
-  testWidgets('месячный вид заливает дни с днями рождения', (tester) async {
+  /// Все непрозрачные доли фона на экране.
+  List<Color> allSegments(WidgetTester tester) {
+    final boxes = tester.widgetList<ColoredBox>(find.byType(ColoredBox));
+    return [for (final box in boxes) if (box.color.a > 0) box.color];
+  }
+
+  testWidgets('месячный вид делит фон дня по числу людей', (tester) async {
     await seed();
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    final scheme =
-        Theme.of(tester.element(find.byType(CalendarScreen))).colorScheme;
+    // Два человека в один день — две доли.
+    expect(segmentsIn(tester, cellOf('15')), hasLength(2));
+    // Один человек — одна доля.
+    expect(segmentsIn(tester, cellOf('30')), hasLength(1));
+    // День без дней рождения остаётся без заливки.
+    expect(segmentsIn(tester, cellOf('14')), isEmpty);
 
-    expect(dayTint(tester, '15'), isNotNull);
-    expect(dayTint(tester, '15'), isNot(scheme.surface));
-    expect(dayTint(tester, '30'), isNotNull);
-    // Пустой день остаётся без заливки.
-    expect(dayTint(tester, '14'), isNull);
+    // Доли должны быть видимы, а не просто присутствовать в дереве.
+    final segments = find.descendant(
+      of: cellOf('15'),
+      matching: find.byType(ColoredBox),
+    );
+    expect(segments, findsNWidgets(2));
+    for (var i = 0; i < 2; i++) {
+      final size = tester.getSize(segments.at(i));
+      expect(size.width, greaterThan(0), reason: 'доля $i шириной ноль');
+      expect(size.height, greaterThan(0), reason: 'доля $i высотой ноль');
+    }
   });
 
-  testWidgets('годовой вид заливает дни с днями рождения цветом',
-      (tester) async {
+  testWidgets('в ячейке дня нет кружка и аватара', (tester) async {
     await seed();
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    // Переключаемся на год.
+    expect(
+      find.descendant(
+        of: cellOf('15'),
+        matching: find.byType(BirthdayAvatar),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('годовой вид делит фон дней по числу людей', (tester) async {
+    await seed();
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byIcon(Icons.calendar_view_month));
     await tester.pumpAndSettle();
 
-    // Ровно две залитые ячейки: 15 и 30 сентября.
-    expect(tintedCells(tester), hasLength(2));
+    // 15 сентября — две доли, 30 сентября — одна; итого три.
+    expect(allSegments(tester), hasLength(3));
+    // Аватаров в сетке года нет вовсе.
+    expect(find.byType(BirthdayAvatar), findsNothing);
   });
 
-  testWidgets('на AMOLED заливка отличима от чёрного фона', (tester) async {
+  testWidgets('на AMOLED доли отличимы от чёрного фона', (tester) async {
     await seed();
     await tester.pumpWidget(app(theme: AppTheme.dark(amoled: true)));
     await tester.pumpAndSettle();
 
-    final tints = tintedCells(tester);
-    expect(tints, hasLength(2));
-    for (final tint in tints) {
+    final segments = segmentsIn(tester, cellOf('15'));
+    expect(segments, hasLength(2));
+    for (final color in segments) {
+      expect(color.a, 1.0);
       expect(
-        tint.computeLuminance(),
+        color.computeLuminance(),
         greaterThan(0.01),
-        reason: 'заливка не должна сливаться с чёрным фоном',
+        reason: 'доля не должна сливаться с чёрным фоном',
       );
     }
   });

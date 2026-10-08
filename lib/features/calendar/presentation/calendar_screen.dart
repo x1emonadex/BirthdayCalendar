@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:birthday_calendar/core/providers/clock_provider.dart';
 import 'package:birthday_calendar/core/routing/app_router.dart';
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
@@ -59,10 +57,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   /// Выбор года из списка: стрелки листают по одному, а диалог — сразу.
+  ///
+  /// Диапазон широкий в обе стороны: раньше он обрывался на десяти годах
+  /// вперёд, и до 2040-х было не добраться ни списком, ни стрелками.
   Future<void> _pickYear() async {
     final now = ref.read(clockProvider).now();
-    final first = now.year - 50;
-    final last = now.year + 10;
+    final first = now.year - 100;
+    final last = now.year + 100;
     final chosen = await showDialog<int>(
       context: context,
       builder: (context) => _YearPicker(
@@ -275,60 +276,25 @@ class _MonthCell extends StatelessWidget {
         ? () => onDayTap(day)
         : null;
 
-    // День с днём рождения заливается цветом самой записи: праздник видно
-    // и по цвету ячейки, а не только по кружку под числом.
-    final tint = day.hasBirthdays
-        ? dayCellTint(
-            birthdayColor: _birthdayColor(day.birthdays.first, scheme),
-            surface: scheme.surface,
-            brightness: theme.brightness,
-          )
-        : null;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: BorderRadius.circular(8),
-          border: day.isToday
-              ? Border.all(color: scheme.primary, width: 2)
-              : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '${day.date.day}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: day.isOutsideMonth ? scheme.outline : scheme.onSurface,
-                fontWeight: day.isToday ? FontWeight.bold : null,
-              ),
-            ),
-            if (day.hasBirthdays)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: _MiniAvatars(birthdays: day.birthdays),
-              ),
-          ],
+      child: _DayCellBackground(
+        birthdays: day.birthdays,
+        surface: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: day.isToday
+            ? Border.all(color: scheme.primary, width: 2)
+            : null,
+        child: Text(
+          '${day.date.day}',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: day.isOutsideMonth ? scheme.outline : scheme.onSurface,
+            fontWeight: day.isToday ? FontWeight.bold : null,
+          ),
         ),
       ),
     );
-  }
-}
-
-/// Аватары (или точки) под числом в месячной сетке.
-class _MiniAvatars extends StatelessWidget {
-  const _MiniAvatars({required this.birthdays});
-
-  final List<BirthdayWithOccurrence> birthdays;
-
-  @override
-  Widget build(BuildContext context) {
-    // Тот же крупный круг со счётчиком, что и в годовом виде: мелкие точки
-    // не читались, а несколько дней рождения в один день не было видно.
-    return _DayMarker(birthdays: birthdays, diameter: 20);
   }
 }
 
@@ -626,16 +592,9 @@ class _MiniMonth extends StatelessWidget {
                             children: [
                               for (var i = 0; i < 7; i++)
                                 Expanded(
-                                  child: LayoutBuilder(
-                                    builder: (context, cell) => _MiniDay(
-                                      day: month.days[week * 7 + i],
-                                      cellHeight: cellHeight,
-                                      markerDiameter: markerDiameterFor(
-                                        cellWidth: cell.maxWidth,
-                                        cellHeight: cellHeight,
-                                      ),
-                                      onTap: onDayTap,
-                                    ),
+                                  child: _MiniDay(
+                                    day: month.days[week * 7 + i],
+                                    onTap: onDayTap,
                                   ),
                                 ),
                             ],
@@ -679,23 +638,11 @@ class _MiniWeekdays extends StatelessWidget {
   }
 }
 
-/// День в годовом виде: число с аватаром или точкой под ним.
+/// День в годовом виде: число на фоне, поделённом по числу праздников.
 class _MiniDay extends StatelessWidget {
-  const _MiniDay({
-    required this.day,
-    required this.cellHeight,
-    required this.markerDiameter,
-    required this.onTap,
-  });
+  const _MiniDay({required this.day, required this.onTap});
 
   final CalendarDay day;
-  final double cellHeight;
-
-  /// Размер кружка под числом. Считается вызывающим кодом: в годовом виде
-  /// ячейки мелкие, и фиксированный размер либо наезжал на число, либо
-  /// схлопывался в точку.
-  final double markerDiameter;
-
   final void Function(CalendarDay day) onTap;
 
   @override
@@ -703,204 +650,113 @@ class _MiniDay extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final first = day.birthdays.isEmpty ? null : day.birthdays.first;
-
-    // Заливка цветом записи, а не нейтральной ступенью: в годовом виде день
-    // рождения должен читаться как цветное пятно, иначе месяц выглядит
-    // пустым. Смешиваем с фоном мини-месяца — он здесь surfaceContainer.
-    final tint = first == null
-        ? Colors.transparent
-        : dayCellTint(
-            birthdayColor: _birthdayColor(first, scheme),
-            surface: scheme.surfaceContainer,
-            brightness: theme.brightness,
-          );
-
     return InkWell(
       onTap: day.hasBirthdays ? () => onTap(day) : null,
       borderRadius: BorderRadius.circular(6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-          Text(
-            '${day.date.day}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
-              color: day.isOutsideMonth
-                  ? scheme.outline.withValues(alpha: 0.35)
-                  : day.isToday
-                      ? scheme.primary
-                      : scheme.onSurface,
-              fontWeight: day.isToday || day.hasBirthdays
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
+      child: _DayCellBackground(
+        birthdays: day.birthdays,
+        // Фон мини-месяца, а не общий фон экрана: к нему подмешивается цвет
+        // записи, иначе заливка не совпала бы с подложкой.
+        surface: scheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(6),
+        child: Text(
+          '${day.date.day}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 11,
+            color: day.isOutsideMonth
+                ? scheme.outline.withValues(alpha: 0.35)
+                : day.isToday
+                    ? scheme.primary
+                    : scheme.onSurface,
+            fontWeight: day.isToday || day.hasBirthdays
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
-          if (first != null)
-            Positioned(
-              bottom: 0,
-              child: _DayMarker(birthdays: day.birthdays, diameter: markerDiameter),
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-/// Значок дня рождения под числом в календаре.
+/// Фон ячейки дня: поделён на доли по числу людей с днём рождения.
 ///
-/// Раньше здесь была точка в 4–7 пикселей, её почти не видно. Теперь это
-/// круг во всю ширину ячейки. Когда в один день несколько праздников, круг
-/// делится на доли: по одной на человека, каждая своего цвета. Так видно и
-/// число, и то, что записи разные.
-class _DayMarker extends StatelessWidget {
-  const _DayMarker({required this.birthdays, required this.diameter});
+/// Отдельного кружка под числом больше нет. Раньше он рисовался под датой
+/// (а при фотографии — как аватар), торчал из ячейки и мешал читать число.
+/// Теперь число людей видно по числу долей фона, а цвет каждой доли — это
+/// цвет своей записи.
+class _DayCellBackground extends StatelessWidget {
+  const _DayCellBackground({
+    required this.birthdays,
+    required this.surface,
+    required this.borderRadius,
+    required this.child,
+    this.border,
+  });
 
   final List<BirthdayWithOccurrence> birthdays;
 
-  /// Диаметр круга задаёт вызывающий код: в годовом виде ячейки мелкие,
-  /// размер нужно задавать явно, иначе круг сожмётся в точку.
-  final double diameter;
+  /// Подложка, с которой смешивается цвет записи. В месячном виде это фон
+  /// экрана, в годовом — фон мини-месяца.
+  final Color surface;
+
+  final BorderRadius borderRadius;
+  final BoxBorder? border;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (birthdays.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final colors = _birthdayColors(birthdays, theme.colorScheme);
 
-    final first = birthdays.first.birthday;
-    final hasPhoto = first.avatarFileName != null;
-
-    if (hasPhoto) {
-      return BirthdayAvatar(
-        birthday: first,
-        size: diameter,
-        showInitial: showsInitial(diameter, birthdays.length),
-      );
-    }
-
-    final colors = _colorsOf(context);
-    final initial = markerInitial(birthdays.first.birthday.name);
-    final showInitial =
-        initial.isNotEmpty && showsInitial(diameter, colors.length);
-    final backing = needsInitialBacking(colors.length);
-    final backingFill = backingColor(Theme.of(context).colorScheme.brightness);
-    final initialColor = initialColorOn(backing ? backingFill : colors.first);
-
-    // Круг с долями и буквой внутри. У одного человека круг одноцветный,
-    // у нескольких — разделённый, но подпись остаётся.
-    return SizedBox(
-      width: diameter,
-      height: diameter,
+    return Container(
+      decoration: BoxDecoration(borderRadius: borderRadius, border: border),
+      // Скругление нужно и долям фона: иначе углы ячейки торчат квадратами
+      // поверх закруглённой рамки.
+      clipBehavior: Clip.antiAlias,
       child: Stack(
-        alignment: Alignment.center,
+        fit: StackFit.expand,
         children: [
-          // SizedBox обязателен: без него CustomPaint в Stack растягивается
-          // на всю ячейку, круг схлопывается и буква не помещается.
-          SizedBox(
-            width: diameter,
-            height: diameter,
-            child: CustomPaint(painter: _PiePainter(colors: colors)),
-          ),
-          // Подложка под букву для разделённого круга: в центре может
-          // проходить граница секторов, и цвет сектора дал бы нечитаемую
-          // подпись.
-          if (showInitial && backing)
-            Container(
-              width: backingDiameterFor(diameter),
-              height: backingDiameterFor(diameter),
-              decoration: BoxDecoration(
-                color: backingFill,
-                shape: BoxShape.circle,
-              ),
+          if (colors.isNotEmpty)
+            Row(
+              // Обязательно stretch: ColoredBox без ребёнка при
+              // выравнивании по центру схлопывается в нулевую высоту, и
+              // заливки не видно вовсе.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final color in colors)
+                  Expanded(
+                    child: ColoredBox(
+                      color: dayCellTint(
+                        birthdayColor: color,
+                        surface: surface,
+                        brightness: theme.brightness,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          // Буква ставится, когда круг достаточно велик: в годовом виде
-          // ячейка мелкая, и подпись слилась бы с числом.
-          if (showInitial)
-            Text(
-              initial,
-              style: TextStyle(
-                color: initialColor,
-                fontSize: diameter * 0.52,
-                fontWeight: FontWeight.bold,
-                height: 1,
-              ),
-            ),
+          Center(child: child),
         ],
       ),
     );
   }
-
-  /// Цвета по каждой записи: свой у каждого профиля.
-  ///
-  /// Если у записи цвет не задан, берётся акцент темы — иначе круг был бы
-  /// серым и сливался с ячейкой.
-  List<Color> _colorsOf(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final result = <Color>[];
-    for (final item in birthdays) {
-      final color = _birthdayColor(item, scheme);
-      if (!result.contains(color)) result.add(color);
-    }
-    if (result.isEmpty) result.add(scheme.primary);
-    return result;
-  }
-
 }
 
-/// Рисует круг, разделённый на доли — по одной на день рождения.
-class _PiePainter extends CustomPainter {
-  const _PiePainter({required this.colors});
-
-  final List<Color> colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Рисуем по центру квадрата со стороной `diameter`: иначе на неквадратной
-    // ячейке круг превращался в овал.
-    final diameter = size.shortestSide;
-    final center = size.center(Offset.zero);
-    final radius = diameter / 2;
-    final total = colors.length;
-    final gap = pieGapFor(total); // доля оборота между секторами
-    for (var i = 0; i < total; i++) {
-      final start = -math.pi / 2 + (2 * math.pi * (i + gap) / total);
-      final end = -math.pi / 2 + (2 * math.pi * (i + 1 - gap) / total);
-      canvas.drawPath(
-        Path()
-          ..moveTo(center.dx, center.dy)
-          ..arcTo(
-            Rect.fromCircle(center: center, radius: radius),
-            start,
-            end - start,
-            false,
-          )
-          ..close(),
-        Paint()..color = colors[i],
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_PiePainter oldDelegate) {
-    if (oldDelegate.colors.length != colors.length) return true;
-    for (var i = 0; i < colors.length; i++) {
-      if (oldDelegate.colors[i] != colors[i]) return true;
-    }
-    return false;
-  }
+/// Цвета долей фона — по одному на человека, без склейки.
+///
+/// Доли не схлопываются даже при совпадении цветов: число долей должно
+/// показывать число людей, а не число разных оттенков.
+List<Color> _birthdayColors(
+  List<BirthdayWithOccurrence> birthdays,
+  ColorScheme scheme,
+) {
+  return [for (final item in birthdays) _birthdayColor(item, scheme)];
 }
 
 /// Цвет записи для разметки календаря: свой цвет аватара либо акцент темы.
 ///
-/// Свой цвет запись получает сразу при создании, поэтому круг и заливка дня
-/// почти всегда цветные; акцент — запасной вариант для старых записей без
-/// цвета. Один и тот же цвет идёт и в заливку ячейки, и в кружок-«пирог»,
-/// чтобы день читался как одна запись, а не как два разных маркера.
+/// Свой цвет запись получает сразу при создании, поэтому доли фона почти
+/// всегда цветные; акцент — запасной вариант для старых записей без цвета.
 Color _birthdayColor(BirthdayWithOccurrence item, ColorScheme scheme) {
   final value = item.birthday.avatarColorValue;
   return value != null ? Color(value) : scheme.primary;
