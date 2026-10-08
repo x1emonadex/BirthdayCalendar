@@ -109,7 +109,11 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: amoled ? amoledSurfaceHigh : null,
-        contentTextStyle: TextStyle(color: scheme.onSurface),
+        // Свой фон есть только у AMOLED, и только там нужен свой цвет
+        // текста. В светлой и тёмной темах фон плашки — inverseSurface, а
+        // его текст — onInverseSurface. Если покрасить текст в onSurface,
+        // он совпадёт с фоном, и плашка покажется пустой.
+        contentTextStyle: amoled ? TextStyle(color: scheme.onSurface) : null,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: amoled ? amoledSurfaceMid : null,

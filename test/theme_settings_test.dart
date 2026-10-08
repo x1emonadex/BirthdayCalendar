@@ -134,4 +134,35 @@ void main() {
       );
     });
   });
+
+  group('плашка-снэкбар читается', () {
+    // Раньше цвет текста плашки жёстко брался из onSurface, а фон оставался
+    // inverseSurface. В тёмной теме это светлое на светлом: плашка выходила
+    // белой и пустой. Проверяем контраст для каждой темы.
+    void check(ThemeData theme, String name) {
+      final scheme = theme.colorScheme;
+      final background =
+          theme.snackBarTheme.backgroundColor ?? scheme.inverseSurface;
+      final foreground = theme.snackBarTheme.contentTextStyle?.color ??
+          scheme.onInverseSurface;
+      expect(
+        _contrastRatio(background, foreground),
+        greaterThan(4.5),
+        reason: '$name: текст не читается на фоне плашки',
+      );
+    }
+
+    test('светлая тема', () => check(AppTheme.light(), 'светлая'));
+    test('тёмная тема', () => check(AppTheme.dark(), 'тёмная'));
+    test('AMOLED', () => check(AppTheme.dark(amoled: true), 'AMOLED'));
+  });
+}
+
+/// Отношение контраста по WCAG: (L1 + 0.05) / (L2 + 0.05).
+double _contrastRatio(Color a, Color b) {
+  final first = a.computeLuminance();
+  final second = b.computeLuminance();
+  final lighter = first > second ? first : second;
+  final darker = first > second ? second : first;
+  return (lighter + 0.05) / (darker + 0.05);
 }

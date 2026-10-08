@@ -129,4 +129,22 @@ void main() {
       );
     }
   });
+
+  testWidgets('выбор года открывается на текущем годе', (tester) async {
+    await seed();
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    // Годовой вид → нажимаем на заголовок с годом.
+    await tester.tap(find.byIcon(Icons.calendar_view_month));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('2026'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Выберите год'), findsOneWidget);
+    // Текущий год виден сразу, без прокрутки на сотню строк.
+    expect(find.widgetWithText(ListTile, '2026'), findsOneWidget);
+    // А начало диапазона в списке даже не построено.
+    expect(find.widgetWithText(ListTile, '1926'), findsNothing);
+  });
 }

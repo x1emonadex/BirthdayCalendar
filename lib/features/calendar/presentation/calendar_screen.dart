@@ -401,7 +401,7 @@ class _DaySheet extends StatelessWidget {
 }
 
 /// Выбор года одним списком, а не по одному стрелками.
-class _YearPicker extends StatelessWidget {
+class _YearPicker extends StatefulWidget {
   const _YearPicker({
     required this.current,
     required this.first,
@@ -413,20 +413,63 @@ class _YearPicker extends StatelessWidget {
   final int last;
 
   @override
+  State<_YearPicker> createState() => _YearPickerState();
+}
+
+class _YearPickerState extends State<_YearPicker> {
+  /// Высота строки списка. Нужна, чтобы посчитать, куда прокрутить список:
+  /// без известной высоты прокрутка встала бы в произвольное место.
+  static const double _rowHeight = 56;
+
+  /// Высота видимой части списка.
+  static const double _viewportHeight = 320;
+
+  late final List<int> _years = List.generate(
+    widget.last - widget.first + 1,
+    (i) => widget.first + i,
+  );
+
+  late final ScrollController _controller = ScrollController(
+    initialScrollOffset: _initialOffset(),
+  );
+
+  /// Ставит текущий год в середину списка.
+  ///
+  /// Диапазон — сто лет в обе стороны, и без этого список открывался бы на
+  /// самой ранней дате: до сегодняшнего года пришлось бы листать сотню строк.
+  double _initialOffset() {
+    final index = _years.indexOf(widget.current);
+    if (index < 0) return 0;
+    final centered = index * _rowHeight - (_viewportHeight - _rowHeight) / 2;
+    return centered < 0 ? 0 : centered;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final years = List.generate(last - first + 1, (i) => first + i);
     return SimpleDialog(
       title: const Text('Выберите год'),
       children: [
+        // Ширина задана жёстко: SimpleDialog измеряет детей по внутренним
+        // размерам, а ленивый список этого не умеет — без явной ширины
+        // диалог падает при раскладке.
         SizedBox(
-          height: 320,
+          width: 280,
+          height: _viewportHeight,
           child: ListView.builder(
-            itemCount: years.length,
+            controller: _controller,
+            itemExtent: _rowHeight,
+            itemCount: _years.length,
             itemBuilder: (context, index) {
-              final year = years[index];
+              final year = _years[index];
               return ListTile(
                 title: Text('$year'),
-                selected: year == current,
+                selected: year == widget.current,
                 onTap: () => Navigator.of(context).pop(year),
               );
             },
