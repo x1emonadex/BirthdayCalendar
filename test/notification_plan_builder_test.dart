@@ -523,22 +523,22 @@ void main() {
       final text = NotificationPlanBuilder.textFor(
         groups.values.first,
       );
-      expect(text.title, 'Дни рождения: 3');
-      expect(text.body, 'Аня, Борис, Иван — через 7 дней, марта 15');
+      expect(text.title, 'Через 7 дней день рождения у 3 человек');
+      expect(text.body, 'Аня, Борис, Иван — 15 марта');
     });
 
-    test('один день рождения сохраняет прежние тексты', () {
+    test('один день рождения — заголовок без счёта людей', () {
       final events = NotificationPlanBuilder.buildPlan(
         now: d(2026, 3, 10),
         items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 15))],
         settings: settings.copyWith(daysBefore: {7}),
       );
       final text = NotificationPlanBuilder.textFor(events);
-      expect(text.title, 'День рождения');
-      expect(text.body, 'Аня — через 7 дней, марта 15');
+      expect(text.title, 'Через 7 дней день рождения');
+      expect(text.body, 'Аня — 15 марта');
     });
 
-    test('в день рождения заголовок без имени', () {
+    test('в день рождения заголовок начинается с «Сегодня»', () {
       final events = NotificationPlanBuilder.buildPlan(
         now: d(2026, 3, 15),
         items: [birthday(name: 'Аня', occurrenceDate: d(2026, 3, 15))],
@@ -548,8 +548,8 @@ void main() {
           .where((e) => e.status != NotificationStatus.skipped)
           .toList();
       final text = NotificationPlanBuilder.textFor(live);
-      expect(text.title, 'День рождения');
-      expect(text.body, 'Аня — сегодня, марта 15');
+      expect(text.title, 'Сегодня день рождения');
+      expect(text.body, 'Аня — 15 марта');
     });
 
     test('разные даты не склеиваются в одно уведомление', () {
@@ -596,8 +596,8 @@ void main() {
         settings: settings.copyWith(daysBefore: {7}),
       );
       final text = NotificationPlanBuilder.textFor(events);
-      expect(text.title, 'День рождения');
-      expect(text.body, 'Аня — через 7 дней, марта 17');
+      expect(text.title, 'Через 7 дней день рождения');
+      expect(text.body, 'Аня — 17 марта');
     });
 
     test('за один день — правильное склонение', () {
@@ -607,8 +607,8 @@ void main() {
         settings: settings.copyWith(daysBefore: {1}),
       );
       final text = NotificationPlanBuilder.textFor(events);
-      expect(text.title, 'День рождения');
-      expect(text.body, 'Аня — через 1 день, марта 11');
+      expect(text.title, 'Завтра день рождения');
+      expect(text.body, 'Аня — 11 марта');
     });
 
     test('в день рождения — особый заголовок', () {
@@ -618,8 +618,28 @@ void main() {
         settings: settings.copyWith(daysBefore: {0}),
       );
       final text = NotificationPlanBuilder.textFor(events);
-      expect(text.title, 'День рождения');
-      expect(text.body, 'Аня — сегодня, марта 17');
+      expect(text.title, 'Сегодня день рождения');
+      expect(text.body, 'Аня — 17 марта');
+    });
+  });
+
+  group('формулировки срока и счёта людей', () {
+    test('срок словами', () {
+      expect(whenPhrase(0), 'Сегодня');
+      expect(whenPhrase(1), 'Завтра');
+      expect(whenPhrase(2), 'Через 2 дня');
+      expect(whenPhrase(5), 'Через 5 дней');
+      expect(whenPhrase(21), 'Через 21 день');
+    });
+
+    test('«человек» склоняется по последней цифре', () {
+      expect(pluralPeople(1), 'человека');
+      expect(pluralPeople(2), 'человек');
+      expect(pluralPeople(5), 'человек');
+      expect(pluralPeople(11), 'человек');
+      expect(pluralPeople(21), 'человека');
+      expect(pluralPeople(22), 'человек');
+      expect(pluralPeople(101), 'человека');
     });
   });
 }

@@ -49,6 +49,21 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     });
   }
 
+  /// Листает на месяц (или год в годовом виде) по свайпу.
+  ///
+  /// Направление как у страниц: свайп влево — вперёд, вправо — назад.
+  /// Медленные смахивания игнорируем, иначе лёгкое касание при прокрутке
+  /// перелистывало бы календарь.
+  void _handleSwipe(double velocity) {
+    if (velocity.abs() < 100) return;
+    final forward = velocity < 0;
+    setState(() {
+      _month = _yearView
+          ? DateTime(_month.year + (forward ? 1 : -1), _month.month)
+          : DateTime(_month.year, _month.month + (forward ? 1 : -1));
+    });
+  }
+
   void _showDay(CalendarDay day) {
     showModalBottomSheet<void>(
       context: context,
@@ -154,13 +169,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               _month.year,
               fallback: fallback,
             );
-            return _YearView(
-              items: yearItems,
-              today: now,
-              // Месяцы строим для выбранного года, а не для текущего:
-              // иначе стрелки меняли бы заголовок, оставляя сетку прежней.
-              year: _month.year,
-              onDayTap: _showDay,
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragEnd: (details) =>
+                  _handleSwipe(details.primaryVelocity ?? 0),
+              child: _YearView(
+                items: yearItems,
+                today: now,
+                // Месяцы строим для выбранного года, а не для текущего:
+                // иначе стрелки меняли бы заголовок, оставляя сетку прежней.
+                year: _month.year,
+                onDayTap: _showDay,
+              ),
             );
           }
 
@@ -169,14 +189,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             items: occurrencesInYear(items, _month.year, fallback: fallback),
             today: now,
           );
-          return Column(
-            children: [
-              const _WeekdayHeader(),
-              Expanded(
-                child: _MonthGrid(month: month, onDayTap: _showDay),
-              ),
-              _MonthList(month: month),
-            ],
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) =>
+                _handleSwipe(details.primaryVelocity ?? 0),
+            child: Column(
+              children: [
+                const _WeekdayHeader(),
+                Expanded(
+                  child: _MonthGrid(month: month, onDayTap: _showDay),
+                ),
+                _MonthList(month: month),
+              ],
+            ),
           );
         },
       ),

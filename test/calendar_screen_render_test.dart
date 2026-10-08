@@ -130,6 +130,31 @@ void main() {
     }
   });
 
+  testWidgets('свайп влево и вправо листает месяцы', (tester) async {
+    await seed();
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    // Открывается сентябрь 2026.
+    expect(find.textContaining('сент'), findsOneWidget);
+
+    await tester.fling(
+      find.byType(CalendarScreen),
+      const Offset(-300, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('окт'), findsOneWidget);
+
+    await tester.fling(
+      find.byType(CalendarScreen),
+      const Offset(300, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('сент'), findsOneWidget);
+  });
+
   testWidgets('выбор года открывается на текущем годе', (tester) async {
     await seed();
     await tester.pumpWidget(app());

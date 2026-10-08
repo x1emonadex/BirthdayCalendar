@@ -57,17 +57,13 @@ class NotificationEvent {
   final NotificationStatus status;
   final bool isImportant;
 
-  /// Дата в формате «марта 15» — так читается в уведомлении на русском.
+  /// Дата в формате «9 октября»: в русском день идёт перед месяцем.
   String get dateLabel {
-    return '${monthNames[occurrenceDate.month - 1]} ${occurrenceDate.day}';
+    return '${occurrenceDate.day} ${monthNames[occurrenceDate.month - 1]}';
   }
 
-  /// Заголовок уведомления — зависит от того, когда оно сработало.
-  String get title {
-    if (daysBefore == 0) return 'Сегодня день рождения';
-    return 'Через $daysBefore '
-        '${BirthdayDateUtils.pluralDays(daysBefore)} — $name';
-  }
+  /// Заголовок одного напоминания: срок и имя.
+  String get title => '${whenPhrase(daysBefore)} — $name';
 
   String get body => '$name, $dateLabel';
 
@@ -96,6 +92,24 @@ class NotificationEvent {
   @override
   String toString() =>
       'NotificationEvent($name, $daysBefore дн., $fireAt, $status)';
+}
+
+/// Как сказать про срок: «Сегодня», «Завтра», «Через 3 дня».
+String whenPhrase(int daysBefore) {
+  if (daysBefore <= 0) return 'Сегодня';
+  if (daysBefore == 1) return 'Завтра';
+  return 'Через $daysBefore ${BirthdayDateUtils.pluralDays(daysBefore)}';
+}
+
+/// Склонение слова «человек» при счёте: «у 1 человека», «у 5 человек».
+///
+/// «Человек» — исключение: форма зависит от последней цифры, а не от общего
+/// правила, по которому склоняются «день» и «год».
+String pluralPeople(int count) {
+  final mod100 = count % 100;
+  final mod10 = count % 10;
+  if (mod10 == 1 && mod100 != 11) return 'человека';
+  return 'человек';
 }
 
 /// Чистый планировщик уведомлений.
@@ -216,27 +230,18 @@ class NotificationPlanBuilder {
     names.sort();
 
     final when = events.first;
-    final occurrence = when.occurrenceDate;
-    final date =
-        '${NotificationEvent.monthNames[occurrence.month - 1]} '
-        '${occurrence.day}';
 
-    // Заголовок отвечает на вопрос «что», тело — «у кого и когда». Так
-    // текст читается сразу, а не как «Сегодня день рождения: 3 дня».
-    final when0 = when.daysBefore == 0
-        ? 'сегодня, $date'
-        : 'через ${when.daysBefore} '
-            '${BirthdayDateUtils.pluralDays(when.daysBefore)}, $date';
+    // Заголовок отвечает на вопрос «что и у кого», тело — «кто именно и
+    // когда». Раньше в заголовке стояло «Дни рождения: 5» — это читалось как
+    // обрывок, а не как фраза.
+    final title = names.length == 1
+        ? '${whenPhrase(when.daysBefore)} день рождения'
+        : '${whenPhrase(when.daysBefore)} день рождения у ${names.length} '
+            '${pluralPeople(names.length)}';
 
-    if (names.length == 1) {
-      return NotificationText(
-        title: 'День рождения',
-        body: '${names.first} — $when0',
-      );
-    }
     return NotificationText(
-      title: 'Дни рождения: ${names.length}',
-      body: '${names.join(', ')} — $when0',
+      title: title,
+      body: '${names.join(', ')} — ${when.dateLabel}',
     );
   }
 

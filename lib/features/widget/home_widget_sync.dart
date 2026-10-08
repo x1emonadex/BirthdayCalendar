@@ -1,5 +1,4 @@
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
-import 'package:birthday_calendar/features/birthdays/data/birthday_model.dart';
 import 'package:birthday_calendar/features/birthdays/data/birthday_repository.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 import 'package:flutter/foundation.dart'
@@ -11,25 +10,60 @@ import 'package:intl/intl.dart';
 const String kBirthdayWidgetProvider = 'BirthdayWidgetProvider';
 
 /// Ключи, под которыми тексты лежат в общих настройках виджета.
-const String kWidgetWhenKey = 'next_when';
-const String kWidgetWhoKey = 'next_who';
+const String kWidgetTitleKey = 'widget_title';
+const String kWidgetLineKeyPrefix = 'widget_line_';
 
-/// Строка «когда» для виджета: «Сегодня день рождения», «Через 3 дня».
+/// Сколько строк с ближайшими датами помещается в виджет.
 ///
-/// Чистая функция: тесты проверяют её напрямую, а виджет получает готовый
-/// текст и не повторяет правила склонений на стороне Android.
-String nextWhenLabel(int daysUntil) {
-  if (daysUntil <= 0) return 'Сегодня день рождения';
-  if (daysUntil == 1) return 'Завтра день рождения';
-  return 'Через $daysUntil ${BirthdayDateUtils.pluralDays(daysUntil)}';
+/// Три строки — столько влезает и в компактный виджет, и в растянутый на всю
+/// ширину: дальше список читать неудобно.
+const int kWidgetMaxLines = 3;
+
+/// Подпись даты в виджете: «Сегодня», «Завтра» или «15 сентября».
+///
+/// Сегодня и завтра важнее числа, а дальше число понятнее срока: «через 45
+/// дней» ничего не говорит о том, когда это.
+String widgetDateLabel(BirthdayOccurrence occurrence) {
+  if (occurrence.daysUntil == 0) return 'Сегодня';
+  if (occurrence.daysUntil == 1) return 'Завтра';
+  return DateFormat('d MMMM', 'ru').format(occurrence.date);
 }
 
-/// Строка «кто и когда»: «Иван, 15 сентября».
-String nextWhoLabel(Birthday birthday, DateTime date) {
-  return '${birthday.name}, ${DateFormat('d MMMM', 'ru').format(date)}';
+/// Строки виджета: ближайшие даты и кто в них.
+///
+/// Дни рождения, выпавшие на одну дату, собираются в одну строку: иначе три
+/// строки виджета занял бы один и тот же день с разными именами, а остальные
+/// даты не поместились бы.
+List<String> nextBirthdayLines(
+  List<BirthdayWithOccurrence> items, {
+  int maxLines = kWidgetMaxLines,
+}) {
+  final keys = <String>[];
+  final labels = <String>[];
+  final names = <List<String>>[];
+
+  for (final item in items) {
+    final date = item.occurrence.date;
+    final key = '${date.year}-${date.month}-${date.day}';
+    var index = keys.indexOf(key);
+
+    if (index < 0) {
+      if (keys.length >= maxLines) break;
+      keys.add(key);
+      labels.add(widgetDateLabel(item.occurrence));
+      names.add(<String>[]);
+      index = keys.length - 1;
+    }
+    names[index].add(item.birthday.name);
+  }
+
+  return [
+    for (var i = 0; i < labels.length; i++)
+      '${labels[i]}: ${names[i].join(', ')}',
+  ];
 }
 
-/// Кладёт в виджет ближайший день рождения.
+/// Кладёт в виджет ближайшие дни рождения.
 ///
 /// На платформах без виджета ничего не делает: вызывающий код не должен
 /// обрастать проверками платформы.
@@ -44,21 +78,18 @@ Future<void> syncHomeWidget({
       query: BirthdayQuery(sort: BirthdaySort.upcoming, reference: now),
     );
 
-    if (items.isEmpty) {
-      await HomeWidget.saveWidgetData<String>(kWidgetWhenKey, 'Список пуст');
+    final lines = items.isEmpty
+        ? const ['Список пуст', 'Добавьте записи']
+        : nextBirthdayLines(items);
+
+    await HomeWidget.saveWidgetData<String>(
+      kWidgetTitleKey,
+      items.isEmpty ? 'Дни рождения' : 'Ближайшие дни рождения',
+    );
+    for (var i = 0; i < kWidgetMaxLines; i++) {
       await HomeWidget.saveWidgetData<String>(
-        kWidgetWhoKey,
-        'Добавьте дни рождения',
-      );
-    } else {
-      final next = items.first;
-      await HomeWidget.saveWidgetData<String>(
-        kWidgetWhenKey,
-        nextWhenLabel(next.occurrence.daysUntil),
-      );
-      await HomeWidget.saveWidgetData<String>(
-        kWidgetWhoKey,
-        nextWhoLabel(next.birthday, next.occurrence.date),
+        '$kWidgetLineKeyPrefix${i + 1}',
+        i < lines.length ? lines[i] : '',
       );
     }
 

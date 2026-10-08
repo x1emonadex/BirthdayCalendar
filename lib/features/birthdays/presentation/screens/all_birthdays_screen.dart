@@ -132,6 +132,7 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
                     key: ValueKey(item.birthday.id),
                     direction: DismissDirection.endToStart,
                     background: _DeleteBackground(),
+                    confirmDismiss: (_) => _confirmDelete(),
                     onDismissed: (_) => _deleteWithUndo(item),
                     child: BirthdayTile(
                       item: item,
@@ -147,10 +148,32 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
     );
   }
 
-  /// Удаляет запись и предлагает вернуть её обратно.
+  /// Спрашивает подтверждение перед удалением.
   ///
-  /// Отдельного вопроса «удалить?» больше нет: это был лишний шаг, а
-  /// промахнуться мимо плашки сложнее, чем мимо кнопки в диалоге.
+  /// Свайп легко сделать случайно, поэтому спрашиваем всегда. Плашка
+  /// «Вернуть» после удаления остаётся: промахнуться можно и в диалоге.
+  Future<bool> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить запись?'),
+        content: const Text('Её можно будет вернуть сразу после удаления.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  /// Удаляет запись и оставляет возможность вернуть её.
   Future<void> _deleteWithUndo(BirthdayWithOccurrence item) async {
     final actions = ref.read(birthdayActionsProvider);
     await actions.delete(item.birthday.id);

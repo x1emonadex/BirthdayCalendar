@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#FFFFFF"/>
-    <corners android:radius="16dp"/>
+<!-- Тёмная полупрозрачная карточка со светлой рамкой.
+
+     Прозрачность задаётся здесь, а не настройкой лаунчера: на Android виджет
+     нельзя сделать «полупрозрачным» из настроек, поэтому подходящая доля
+     зашита в саму карточку. Рамка нужна, чтобы карточка не пропадала на
+     тёмных обоях. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#D91C1B22" />
+    <corners android:radius="20dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#40FFFFFF" />
 </shape>

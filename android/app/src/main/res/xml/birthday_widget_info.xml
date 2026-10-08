@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Минимальные размеры маленькие, чтобы виджет можно было и сжать, и
+     растянуть. targetCell* задаёт размер по умолчанию (2×2) на Android 12+;
+     на старых версиях атрибут игнорируется, и размер берётся из minWidth. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/birthday_widget_layout"
     android:minHeight="60dp"
-    android:minWidth="180dp"
+    android:minResizeHeight="60dp"
+    android:minResizeWidth="110dp"
+    android:minWidth="110dp"
     android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="2"
     android:updatePeriodMillis="86400000"
     android:widgetCategory="home_screen">
 </appwidget-provider>

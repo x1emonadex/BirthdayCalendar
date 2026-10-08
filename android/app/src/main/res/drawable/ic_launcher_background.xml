@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Фон адаптивной иконки: тот же градиент, что и у обычной, чтобы на
+     Android 8+ и на старых версиях иконка выглядела одинаково. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:endColor="#5B2FD6"
+        android:startColor="#8B6CFF" />
+</shape>
