@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:birthday_calendar/core/providers/clock_provider.dart';
 import 'package:birthday_calendar/core/providers/database_provider.dart';
 import 'package:birthday_calendar/features/birthdays/data/birthday_model.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_list_providers.dart';
+import 'package:birthday_calendar/features/widget/home_widget_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Данные для создания или обновления дня рождения.
@@ -102,6 +106,12 @@ class BirthdayActions {
     return deleted;
   }
 
+  /// Возвращает удалённую запись — для плашки «Вернуть».
+  Future<void> restore(Birthday birthday) async {
+    await _ref.read(birthdayRepositoryProvider).restore(birthday);
+    _invalidateLists();
+  }
+
   Future<int> deleteAll() async {
     final repository = _ref.read(birthdayRepositoryProvider);
     final count = await repository.deleteAll();
@@ -116,6 +126,13 @@ class BirthdayActions {
     // Календарь тоже читает дни рождения. Без этой строки новая запись
     // появлялась в списке, но не в календаре до перезапуска приложения.
     _ref.invalidate(allYearsBirthdaysProvider);
+    // Виджет на рабочем столе показывает те же данные — обновляем и его.
+    unawaited(
+      syncHomeWidget(
+        repository: _ref.read(birthdayRepositoryProvider),
+        now: _ref.read(clockProvider).now(),
+      ),
+    );
   }
 }
 

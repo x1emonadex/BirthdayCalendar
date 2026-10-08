@@ -1,3 +1,4 @@
+import 'package:birthday_calendar/core/utils/month_names.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 
 /// Раздел списка дней рождения.
@@ -65,4 +66,81 @@ class BirthdayGrouping {
         BirthdaySectionData(section: BirthdaySection.later, items: later),
     ];
   }
+}
+
+/// Как подписывать группы в полном списке.
+enum MonthHeaderStyle {
+  /// Без подписей: список идёт не по датам, подписи повторялись бы.
+  none,
+
+  /// «Сентябрь 2026» — список идёт по ближайшим датам.
+  monthAndYear,
+
+  /// «Сентябрь» — список идёт по месяцам года, год у месяцев разный.
+  monthOnly,
+}
+
+/// Строка полного списка: либо подпись месяца, либо запись.
+sealed class BirthdayListRow {
+  const BirthdayListRow();
+}
+
+/// Подпись месяца перед группой записей.
+class MonthHeaderRow extends BirthdayListRow {
+  const MonthHeaderRow(this.label);
+
+  final String label;
+}
+
+/// Одна запись списка.
+class BirthdayRow extends BirthdayListRow {
+  const BirthdayRow(this.item);
+
+  final BirthdayWithOccurrence item;
+}
+
+/// Как подписывать список при такой сортировке.
+///
+/// По имени и «важные сверху» даты идут вперемешку, и подписи месяцев
+/// повторялись бы через строку — там они только мешают.
+MonthHeaderStyle headerStyleFor(BirthdaySort sort) {
+  return switch (sort) {
+    BirthdaySort.upcoming => MonthHeaderStyle.monthAndYear,
+    BirthdaySort.byCalendarDate => MonthHeaderStyle.monthOnly,
+    BirthdaySort.byName || BirthdaySort.importantFirst => MonthHeaderStyle.none,
+  };
+}
+
+/// Вставляет подписи месяцев в список.
+///
+/// Чистая функция: список приходит уже отсортированным, порядок сохраняется.
+List<BirthdayListRow> withMonthHeaders(
+  List<BirthdayWithOccurrence> items, {
+  MonthHeaderStyle style = MonthHeaderStyle.monthAndYear,
+}) {
+  if (style == MonthHeaderStyle.none) {
+    return [for (final item in items) BirthdayRow(item)];
+  }
+
+  final rows = <BirthdayListRow>[];
+  int? lastYear;
+  int? lastMonth;
+
+  for (final item in items) {
+    final date = item.occurrence.date;
+    if (date.year != lastYear || date.month != lastMonth) {
+      rows.add(
+        MonthHeaderRow(
+          style == MonthHeaderStyle.monthAndYear
+              ? monthTitle(date.year, date.month)
+              : monthName(date.month),
+        ),
+      );
+      lastYear = date.year;
+      lastMonth = date.month;
+    }
+    rows.add(BirthdayRow(item));
+  }
+
+  return rows;
 }

@@ -522,4 +522,35 @@ void main() {
       expect(await repo.count(), 2);
     });
   });
+
+  group('восстановление удалённой записи', () {
+    test('возвращает запись целиком: id, имя и аватар', () async {
+      final created = await repo.create(name: 'Иван', day: 15, month: 9);
+      final full = await repo.setAvatarColor(created.id, 0xFFE57373);
+
+      await repo.delete(full.id);
+      expect(await repo.findById(full.id), isNull);
+
+      await repo.restore(full);
+      final restored = await repo.findById(full.id);
+
+      expect(restored, isNotNull);
+      expect(restored!.id, full.id);
+      expect(restored.name, 'Иван');
+      expect(restored.day, 15);
+      expect(restored.month, 9);
+      expect(restored.avatarColorValue, 0xFFE57373);
+      expect(restored.createdAt, full.createdAt);
+    });
+
+    test('повторное восстановление не падает и не плодит записи', () async {
+      final created = await repo.create(name: 'Иван', day: 15, month: 9);
+      await repo.delete(created.id);
+
+      await repo.restore(created);
+      await repo.restore(created);
+
+      expect(await repo.count(), 1);
+    });
+  });
 }

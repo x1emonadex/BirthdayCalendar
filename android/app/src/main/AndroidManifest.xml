@@ -8,7 +8,7 @@
          и не запрашивается у пользователя. -->
 
     <application
-        android:label="birthday_calendar"
+        android:label="Дни рождения"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -59,6 +59,20 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
+        </receiver>
+
+        <!-- Виджет на рабочем столе: ближайший день рождения и срок до него.
+             Данные кладёт приложение, разметку рисует BirthdayWidgetProvider. -->
+        <receiver
+            android:name=".BirthdayWidgetProvider"
+            android:label="Дни рождения"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/birthday_widget_info" />
         </receiver>
     </application>
     <!-- Required to query activities that can process text, see:

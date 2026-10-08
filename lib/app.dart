@@ -1,9 +1,12 @@
+import 'package:birthday_calendar/core/providers/clock_provider.dart';
+import 'package:birthday_calendar/core/providers/database_provider.dart';
 import 'package:birthday_calendar/core/routing/app_router.dart';
 import 'package:birthday_calendar/core/routing/navigation_settings.dart';
 import 'package:birthday_calendar/core/theme/app_theme.dart';
 import 'package:birthday_calendar/core/theme/theme_preferences.dart';
 import 'package:birthday_calendar/core/theme/theme_provider.dart';
 import 'package:birthday_calendar/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:birthday_calendar/features/widget/home_widget_sync.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -45,6 +48,16 @@ class _BirthdayAppState extends ConsumerState<BirthdayApp> {
         await ref.read(notificationSchedulerProvider).refresh();
       } catch (error, stack) {
         debugPrint('Не удалось настроить уведомления: $error\n$stack');
+      }
+
+      // Виджет на рабочем столе мог устареть, пока приложение было закрыто.
+      try {
+        await syncHomeWidget(
+          repository: ref.read(birthdayRepositoryProvider),
+          now: ref.read(clockProvider).now(),
+        );
+      } catch (error) {
+        debugPrint('Не удалось обновить виджет: $error');
       }
     });
   }

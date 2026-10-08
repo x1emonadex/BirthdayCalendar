@@ -135,6 +135,18 @@ class BirthdayRepository {
     return count > 0;
   }
 
+  /// Возвращает удалённую запись на место — для отмены удаления.
+  ///
+  /// В отличие от [create], сохраняет и идентификатор, и аватар, и исходные
+  /// даты: отмена должна вернуть ровно то, что было, а не создать новую
+  /// запись. Повторный вызов безопасен: запись просто перезаписывается.
+  Future<void> restore(Birthday birthday) async {
+    await _db.into(_db.birthdayEntries).insert(
+          birthday.toEntry(),
+          mode: InsertMode.insertOrReplace,
+        );
+  }
+
   /// Удаляет все записи профиля. Возвращает количество удалённых.
   Future<int> deleteAll({String? profileId}) async {
     final profile = profileId ?? await _db.ensureDefaultProfileId();

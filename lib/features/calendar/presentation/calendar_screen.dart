@@ -2,6 +2,7 @@ import 'package:birthday_calendar/core/providers/clock_provider.dart';
 import 'package:birthday_calendar/core/routing/app_router.dart';
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
 import 'package:birthday_calendar/core/utils/leap_day_rule.dart';
+import 'package:birthday_calendar/core/utils/month_names.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_list_providers.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/widgets/birthday_avatar.dart';
@@ -486,21 +487,6 @@ class _MonthPicker extends StatelessWidget {
 
   final int current;
 
-  static const List<String> _names = [
-    'Январь',
-    'Февраль',
-    'Март',
-    'Апрель',
-    'Май',
-    'Июнь',
-    'Июль',
-    'Август',
-    'Сентябрь',
-    'Октябрь',
-    'Ноябрь',
-    'Декабрь',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -514,9 +500,9 @@ class _MonthPicker extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          for (var i = 0; i < _names.length; i++)
+          for (var i = 0; i < monthNames.length; i++)
             ListTile(
-              title: Text(_names[i]),
+              title: Text(monthNames[i]),
               selected: i + 1 == current,
               onTap: () => Navigator.of(context).pop(i + 1),
             ),

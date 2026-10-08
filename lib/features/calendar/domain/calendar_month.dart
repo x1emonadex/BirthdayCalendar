@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:birthday_calendar/core/utils/birthday_date_utils.dart';
+import 'package:birthday_calendar/core/utils/month_names.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 
 /// Переносит дни рождения на конкретный год.
@@ -69,7 +70,7 @@ class CalendarMonth {
   final List<CalendarDay> days;
 
   /// Название месяца для заголовка, например «Сентябрь 2026».
-  String get title => '${_monthNames[month.month - 1]} ${month.year}';
+  String get title => monthTitle(month.year, month.month);
 
   /// Все дни рождения месяца, отсортированные по дате.
   List<BirthdayWithOccurrence> get birthdays {
@@ -140,19 +141,4 @@ class CalendarMonth {
 
     return CalendarMonth(month: firstOfMonth, days: days);
   }
-
-  static const List<String> _monthNames = [
-    'Январь',
-    'Февраль',
-    'Март',
-    'Апрель',
-    'Май',
-    'Июнь',
-    'Июль',
-    'Август',
-    'Сентябрь',
-    'Октябрь',
-    'Ноябрь',
-    'Декабрь',
-  ];
 }

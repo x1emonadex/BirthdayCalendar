@@ -86,6 +86,17 @@ final FutureProvider<List<BirthdayWithOccurrence>> allBirthdaysProvider =
   );
 });
 
+/// Строки полного списка: записи с подписями месяцев между группами.
+///
+/// Подписи зависят от сортировки, поэтому стиль берётся из запроса, а не
+/// задаётся экраном.
+final FutureProvider<List<BirthdayListRow>> allBirthdaysRowsProvider =
+    FutureProvider<List<BirthdayListRow>>((ref) async {
+  final query = ref.watch(allBirthdaysQueryControllerProvider);
+  final items = await ref.watch(allBirthdaysProvider.future);
+  return withMonthHeaders(items, style: headerStyleFor(query.sort));
+});
+
 /// Ближайшие дни рождения для главного экрана.
 final FutureProvider<List<BirthdayWithOccurrence>> upcomingBirthdaysProvider =
     FutureProvider<List<BirthdayWithOccurrence>>((ref) async {

@@ -1,4 +1,5 @@
 import 'package:birthday_calendar/core/routing/app_router.dart';
+import 'package:birthday_calendar/features/birthdays/domain/birthday_grouping.dart';
 import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_actions_provider.dart';
 import 'package:birthday_calendar/features/birthdays/presentation/providers/birthday_list_providers.dart';
@@ -34,7 +35,7 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(allBirthdaysQueryProvider);
-    final items = ref.watch(allBirthdaysProvider);
+    final rows = ref.watch(allBirthdaysRowsProvider);
     final controller = ref.read(allBirthdaysQueryControllerProvider.notifier);
 
     return Scaffold(
@@ -103,7 +104,7 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
         onPressed: () => context.go(AppRoutes.birthdayNew),
         child: const Icon(Icons.add),
       ),
-      body: items.when(
+      body: rows.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) =>
             Center(child: Text('Ошибка загрузки:\n$error')),
@@ -125,20 +126,20 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
             padding: const EdgeInsets.only(bottom: 88),
             itemCount: list.length,
             itemBuilder: (context, index) {
-              final item = list[index];
-              return Dismissible(
-                key: ValueKey(item.birthday.id),
-                direction: DismissDirection.endToStart,
-                background: _DeleteBackground(),
-                confirmDismiss: (_) => _confirmDelete(context, item.birthday.id),
-                onDismissed: (_) => ref
-                    .read(birthdayActionsProvider)
-                    .delete(item.birthday.id),
-                child: BirthdayTile(
-                  item: item,
-                  onTap: () => context.go(AppRoutes.birthdayEdit(item.birthday.id)),
-                ),
-              );
+              return switch (list[index]) {
+                MonthHeaderRow(:final label) => _MonthHeader(label: label),
+                BirthdayRow(:final item) => Dismissible(
+                    key: ValueKey(item.birthday.id),
+                    direction: DismissDirection.endToStart,
+                    background: _DeleteBackground(),
+                    onDismissed: (_) => _deleteWithUndo(item),
+                    child: BirthdayTile(
+                      item: item,
+                      onTap: () =>
+                          context.go(AppRoutes.birthdayEdit(item.birthday.id)),
+                    ),
+                  ),
+              };
             },
           );
         },
@@ -146,25 +147,50 @@ class _AllBirthdaysScreenState extends ConsumerState<AllBirthdaysScreen> {
     );
   }
 
-  Future<bool> _confirmDelete(BuildContext context, String id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить запись?'),
-        content: const Text('Это действие нельзя отменить.'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Отмена'),
+  /// Удаляет запись и предлагает вернуть её обратно.
+  ///
+  /// Отдельного вопроса «удалить?» больше нет: это был лишний шаг, а
+  /// промахнуться мимо плашки сложнее, чем мимо кнопки в диалоге.
+  Future<void> _deleteWithUndo(BirthdayWithOccurrence item) async {
+    final actions = ref.read(birthdayActionsProvider);
+    await actions.delete(item.birthday.id);
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    // Плашку держим дольше обычного: за это время нужно успеть передумать.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Запись удалена'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Вернуть',
+            onPressed: () => actions.restore(item.birthday),
           ),
-          FilledButton(
-            onPressed: () => context.pop(true),
-            child: const Text('Удалить'),
-          ),
-        ],
+        ),
+      );
+  }
+}
+
+/// Подпись месяца перед группой записей.
+class _MonthHeader extends StatelessWidget {
+  const _MonthHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        label,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
       ),
     );
-    return confirmed ?? false;
   }
 }
 

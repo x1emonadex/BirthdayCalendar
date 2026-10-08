@@ -161,4 +161,86 @@ void main() {
       expect(section.isEmpty, isFalse);
     });
   });
+
+  group('подписи месяцев в полном списке', () {
+    BirthdayWithOccurrence onDate(String name, DateTime date) {
+      final stamp = DateTime(2026);
+      return BirthdayWithOccurrence(
+        birthday: Birthday(
+          id: name,
+          profileId: 'p',
+          name: name,
+          day: date.day,
+          month: date.month,
+          createdAt: stamp,
+          updatedAt: stamp,
+        ),
+        occurrence: BirthdayOccurrence(
+          date: date,
+          daysUntil: 0,
+          yearsSinceBirth: null,
+        ),
+      );
+    }
+
+    test('стиль подписей зависит от сортировки', () {
+      expect(
+        headerStyleFor(BirthdaySort.upcoming),
+        MonthHeaderStyle.monthAndYear,
+      );
+      expect(
+        headerStyleFor(BirthdaySort.byCalendarDate),
+        MonthHeaderStyle.monthOnly,
+      );
+      expect(headerStyleFor(BirthdaySort.byName), MonthHeaderStyle.none);
+      expect(
+        headerStyleFor(BirthdaySort.importantFirst),
+        MonthHeaderStyle.none,
+      );
+    });
+
+    test('подпись ставится перед сменой месяца', () {
+      final rows = withMonthHeaders([
+        onDate('Иван', DateTime(2026, 9, 15)),
+        onDate('Аня', DateTime(2026, 9, 20)),
+        onDate('Пётр', DateTime(2026, 10, 1)),
+      ]);
+
+      expect(rows, hasLength(5));
+      expect((rows[0] as MonthHeaderRow).label, 'Сентябрь 2026');
+      expect((rows[1] as BirthdayRow).item.birthday.name, 'Иван');
+      expect((rows[2] as BirthdayRow).item.birthday.name, 'Аня');
+      expect((rows[3] as MonthHeaderRow).label, 'Октябрь 2026');
+      expect((rows[4] as BirthdayRow).item.birthday.name, 'Пётр');
+    });
+
+    test('год меняется — подпись новая', () {
+      final rows = withMonthHeaders([
+        onDate('Иван', DateTime(2026, 12, 20)),
+        onDate('Аня', DateTime(2027, 12, 25)),
+      ]);
+      expect((rows[0] as MonthHeaderRow).label, 'Декабрь 2026');
+      expect((rows[2] as MonthHeaderRow).label, 'Декабрь 2027');
+    });
+
+    test('при сортировке по имени подписей нет', () {
+      final rows = withMonthHeaders(
+        [onDate('Иван', DateTime(2026, 9, 15))],
+        style: MonthHeaderStyle.none,
+      );
+      expect(rows.single, isA<BirthdayRow>());
+    });
+
+    test('в режиме «только месяц» год не пишется', () {
+      final rows = withMonthHeaders(
+        [onDate('Иван', DateTime(2026, 9, 15))],
+        style: MonthHeaderStyle.monthOnly,
+      );
+      expect((rows.first as MonthHeaderRow).label, 'Сентябрь');
+    });
+
+    test('пустой список не даёт подписей', () {
+      expect(withMonthHeaders(const []), isEmpty);
+    });
+  });
 }
