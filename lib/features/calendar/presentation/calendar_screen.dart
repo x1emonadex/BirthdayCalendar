@@ -275,12 +275,22 @@ class _MonthCell extends StatelessWidget {
         ? () => onDayTap(day)
         : null;
 
+    // День с днём рождения заливается цветом самой записи: праздник видно
+    // и по цвету ячейки, а не только по кружку под числом.
+    final tint = day.hasBirthdays
+        ? dayCellTint(
+            birthdayColor: _birthdayColor(day.birthdays.first, scheme),
+            surface: scheme.surface,
+            brightness: theme.brightness,
+          )
+        : null;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
-          color: day.hasBirthdays ? scheme.primaryContainer : null,
+          color: tint,
           borderRadius: BorderRadius.circular(8),
           border: day.isToday
               ? Border.all(color: scheme.primary, width: 2)
@@ -695,16 +705,23 @@ class _MiniDay extends StatelessWidget {
 
     final first = day.birthdays.isEmpty ? null : day.birthdays.first;
 
+    // Заливка цветом записи, а не нейтральной ступенью: в годовом виде день
+    // рождения должен читаться как цветное пятно, иначе месяц выглядит
+    // пустым. Смешиваем с фоном мини-месяца — он здесь surfaceContainer.
+    final tint = first == null
+        ? Colors.transparent
+        : dayCellTint(
+            birthdayColor: _birthdayColor(first, scheme),
+            surface: scheme.surfaceContainer,
+            brightness: theme.brightness,
+          );
+
     return InkWell(
       onTap: day.hasBirthdays ? () => onTap(day) : null,
       borderRadius: BorderRadius.circular(6),
       child: Container(
-        // Ячейка с днём рождения чуть светлее фона: иначе в AMOLED точка
-        // терялась среди пустых ячеек, и месяц читался как пустая сетка.
         decoration: BoxDecoration(
-          color: day.hasBirthdays
-              ? scheme.surfaceContainerHigh
-              : Colors.transparent,
+          color: tint,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Stack(
@@ -826,8 +843,7 @@ class _DayMarker extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final result = <Color>[];
     for (final item in birthdays) {
-      final value = item.birthday.avatarColorValue;
-      final color = value != null ? Color(value) : scheme.primary;
+      final color = _birthdayColor(item, scheme);
       if (!result.contains(color)) result.add(color);
     }
     if (result.isEmpty) result.add(scheme.primary);
@@ -877,4 +893,15 @@ class _PiePainter extends CustomPainter {
     }
     return false;
   }
+}
+
+/// Цвет записи для разметки календаря: свой цвет аватара либо акцент темы.
+///
+/// Свой цвет запись получает сразу при создании, поэтому круг и заливка дня
+/// почти всегда цветные; акцент — запасной вариант для старых записей без
+/// цвета. Один и тот же цвет идёт и в заливку ячейки, и в кружок-«пирог»,
+/// чтобы день читался как одна запись, а не как два разных маркера.
+Color _birthdayColor(BirthdayWithOccurrence item, ColorScheme scheme) {
+  final value = item.birthday.avatarColorValue;
+  return value != null ? Color(value) : scheme.primary;
 }

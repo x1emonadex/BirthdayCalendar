@@ -82,10 +82,6 @@ final NotifierProvider<NavigationController, NavigationSettings>
   NavigationController.new,
 );
 
-/// Читатель настроек из базы.
-final Provider<NavigationSettings> navigationSettingsProvider =
-    Provider<NavigationSettings>((ref) => const NavigationSettings());
-
 /// Управляет составом и порядком вкладок.
 class NavigationController extends Notifier<NavigationSettings> {
   @override

@@ -95,3 +95,19 @@ const double minDiameter = 10;
 
 /// Максимальный диаметр кружка в сетке дня.
 const double maxDiameter = 16;
+
+/// Цвет заливки ячейки календаря для дня, в который есть день рождения.
+///
+/// Полупрозрачную заливку использовать нельзя: на AMOLED чёрный фон плюс
+/// `alpha` даёт тот же чёрный, и день пропадает. Поэтому цвет записи плотно
+/// смешивается с фоном поверхности — результат непрозрачный и различимый на
+/// любом фоне. Доля подобрана так, чтобы день читался как цветной, но число
+/// и кружок оставались контрастными.
+Color dayCellTint({
+  required Color birthdayColor,
+  required Color surface,
+  required Brightness brightness,
+}) {
+  final strength = brightness == Brightness.dark ? 0.34 : 0.24;
+  return Color.alphaBlend(birthdayColor.withValues(alpha: strength), surface);
+}

@@ -240,6 +240,24 @@ class _EditBirthdayScreenState extends ConsumerState<EditBirthdayScreen> {
                 child: Text(id == null ? 'Добавить' : 'Сохранить'),
               ),
             ),
+            // Удаление доступно только у существующей записи: до сохранения
+            // удалять нечего. Раньше убрать запись можно было лишь свайпом
+            // в списке «Все», и из формы это выглядело как «кнопки нет».
+            if (id != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : () => _confirmDelete(id),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Удалить'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -292,6 +310,41 @@ class _EditBirthdayScreenState extends ConsumerState<EditBirthdayScreen> {
       if (mounted) context.go(AppRoutes.birthdays);
     } on ArgumentError catch (error) {
       _showError(_messageOf(error));
+    } on StateError catch (error) {
+      _showError(_messageOf(error));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Удаляет запись после подтверждения и возвращает к списку.
+  ///
+  /// Спрашиваем всегда: удаление необратимо, а кнопка стоит рядом с
+  /// «Сохранить», куда легко промахнуться.
+  Future<void> _confirmDelete(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить запись?'),
+        content: const Text('Это действие нельзя отменить.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref.read(birthdayActionsProvider).delete(id);
+      if (mounted) context.go(AppRoutes.birthdays);
     } on StateError catch (error) {
       _showError(_messageOf(error));
     } finally {

@@ -10,9 +10,9 @@ import 'package:birthday_calendar/features/birthdays/domain/birthday_query.dart'
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
-/// Р”РѕСЃС‚СѓРї Рє РґР°РЅРЅС‹Рј РґРЅРµР№ СЂРѕР¶РґРµРЅРёСЏ.
+/// Доступ к данным дней рождения.
 ///
-/// РЎР»РѕР№ РЅРµ Р·РЅР°РµС‚ РїСЂРѕ UI: РЅР° РІС‹С…РѕРґРµ вЂ” С‡РёСЃС‚С‹Рµ [Birthday] Рё [BirthdayOccurrence].
+/// Слой не знает про UI: на выходе — чистые [Birthday] и [BirthdayOccurrence].
 class BirthdayRepository {
   BirthdayRepository(this._db);
 
@@ -20,7 +20,7 @@ class BirthdayRepository {
 
   static const Uuid _uuid = Uuid();
 
-  /// Р’СЃРµ РґРЅРё СЂРѕР¶РґРµРЅРёСЏ РїСЂРѕС„РёР»СЏ СЃ СЂР°СЃСЃС‡РёС‚Р°РЅРЅС‹Рј СЂР°СЃСЃС‚РѕСЏРЅРёРµРј РґРѕ СЃРѕР±С‹С‚РёСЏ.
+  /// Все дни рождения профиля с рассчитанным расстоянием до события.
   Future<List<BirthdayWithOccurrence>> list({
     BirthdayQuery query = const BirthdayQuery(),
     String? profileId,
@@ -52,7 +52,7 @@ class BirthdayRepository {
     return result;
   }
 
-  /// Р—Р°РїРёСЃСЊ РїРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ Р»РёР±Рѕ `null`, РµСЃР»Рё РµС‘ РЅРµС‚.
+  /// Запись по идентификатору либо `null`, если её нет.
   Future<Birthday?> findById(String id) async {
     final row = await (_db.select(_db.birthdayEntries)
           ..where((t) => t.id.equals(id))
@@ -61,7 +61,7 @@ class BirthdayRepository {
     return row == null ? null : Birthday.fromEntry(row);
   }
 
-  /// РЎРѕР·РґР°С‘С‚ РґРµРЅСЊ СЂРѕР¶РґРµРЅРёСЏ. Р“РѕРґ СЂРѕР¶РґРµРЅРёСЏ РЅРµРѕР±СЏР·Р°С‚РµР»РµРЅ.
+  /// Создаёт день рождения. Год рождения необязателен.
   Future<Birthday> create({
     required String name,
     required int day,
@@ -94,7 +94,7 @@ class BirthdayRepository {
     return entry;
   }
 
-  /// РћР±РЅРѕРІР»СЏРµС‚ СЃСѓС‰РµСЃС‚РІСѓСЋС‰СѓСЋ Р·Р°РїРёСЃСЊ. Р‘СЂРѕСЃРёС‚ [StateError], РµСЃР»Рё РµС‘ РЅРµС‚.
+  /// Обновляет существующую запись. Бросит [StateError], если её нет.
   Future<Birthday> update({
     required String id,
     required String name,
@@ -107,7 +107,7 @@ class BirthdayRepository {
     _validate(name: name, day: day, month: month, birthYear: birthYear);
     final current = await findById(id);
     if (current == null) {
-      throw StateError('Р”РµРЅСЊ СЂРѕР¶РґРµРЅРёСЏ СЃ id=$id РЅРµ РЅР°Р№РґРµРЅ');
+      throw StateError('День рождения с id=$id не найден');
     }
 
     final updated = current.copyWith(
@@ -127,7 +127,7 @@ class BirthdayRepository {
     return updated;
   }
 
-  /// РЈРґР°Р»СЏРµС‚ Р·Р°РїРёСЃСЊ. Р’РѕР·РІСЂР°С‰Р°РµС‚ `true`, РµСЃР»Рё С‡С‚Рѕ-С‚Рѕ Р±С‹Р»Рѕ СѓРґР°Р»РµРЅРѕ.
+  /// Удаляет запись. Возвращает `true`, если что-то было удалено.
   Future<bool> delete(String id) async {
     final count = await (_db.delete(_db.birthdayEntries)
           ..where((t) => t.id.equals(id)))
@@ -135,7 +135,7 @@ class BirthdayRepository {
     return count > 0;
   }
 
-  /// РЈРґР°Р»СЏРµС‚ РІСЃРµ Р·Р°РїРёСЃРё РїСЂРѕС„РёР»СЏ. Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ СѓРґР°Р»С‘РЅРЅС‹С….
+  /// Удаляет все записи профиля. Возвращает количество удалённых.
   Future<int> deleteAll({String? profileId}) async {
     final profile = profileId ?? await _db.ensureDefaultProfileId();
     return (_db.delete(_db.birthdayEntries)
@@ -143,8 +143,8 @@ class BirthdayRepository {
         .go();
   }
 
-  /// Р—Р°РїРёСЃРё, РіРѕС‚РѕРІС‹Рµ Рє РёРјРїРѕСЂС‚Сѓ: РїРѕРёСЃРє РґСѓР±Р»РµР№ РїРѕ UUID Рё РїРѕ РЅРѕСЂРјРёСЂРѕРІР°РЅРЅС‹Рј
-  /// РёРјРµРЅРё СЃ РґР°С‚РѕР№.
+  /// Записи, готовые к импорту: поиск дублей по UUID и по нормированным
+  /// имени с датой.
   Future<ImportIndex> buildImportIndex({String? profileId}) async {
     final profile = profileId ?? await _db.ensureDefaultProfileId();
     final rows = await (_db.select(_db.birthdayEntries)
@@ -156,13 +156,13 @@ class BirthdayRepository {
     for (final row in rows) {
       final birthday = Birthday.fromEntry(row);
       byId[birthday.id] = birthday;
-      // Р”СѓР±Р»Рё РїРѕ РєР»СЋС‡Сѓ РѕСЃС‚Р°РІР»СЏРµРј: РїРµСЂРІР°СЏ wins, РѕСЃС‚Р°Р»СЊРЅС‹Рµ СЃС‡РёС‚Р°СЋС‚СЃСЏ РґСѓР±Р»СЏРјРё.
+      // Дубли по ключу оставляем: первая wins, остальные считаются дублями.
       byKey.putIfAbsent(birthday.dedupKey, () => birthday);
     }
     return ImportIndex(byId: byId, byKey: byKey);
   }
 
-  /// РљРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃРµР№ РІ РїСЂРѕС„РёР»Рµ.
+  /// Количество записей в профиле.
   Future<int> count({String? profileId}) async {
     final profile = profileId ?? await _db.ensureDefaultProfileId();
     final countExpr = _db.birthdayEntries.id.count();
@@ -186,8 +186,8 @@ class BirthdayRepository {
 
     var rows = await statement.get();
 
-    // РџРѕРёСЃРє РґРµР»Р°РµРј РІ Dart, Р° РЅРµ С‡РµСЂРµР· SQL LIKE/lower(): С„СѓРЅРєС†РёСЏ lower() РІ
-    // SQLite СЂР°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ СЃ ASCII Рё РЅРµ РїРѕРЅРёРјР°РµС‚ РєРёСЂРёР»Р»РёС†Сѓ, РїРѕСЌС‚РѕРјСѓ
+    // Поиск делаем в Dart, а не через SQL LIKE/lower(): функция lower() в
+    // SQLite работает только с ASCII и не понимает кириллицу, поэтому
     // Р·Р°РїСЂРѕСЃ В«РёРІР°РЅВ» РЅРµ РЅР°С€С‘Р» Р±С‹ В«РРІР°РЅВ».
     final search = query.search.trim().toLowerCase();
     if (search.isNotEmpty) {
@@ -250,25 +250,25 @@ class BirthdayRepository {
     }
     if (month < 1 || month > 12) {
       throw ArgumentError(
-        'РњРµСЃСЏС† РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РІ РґРёР°РїР°Р·РѕРЅРµ 1..12, РїРѕР»СѓС‡РµРЅРѕ $month',
+        'Месяц должен быть в диапазоне 1..12, получено $month',
       );
     }
     if (day < 1 || day > 31) {
       throw ArgumentError(
-        'Р”РµРЅСЊ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РІ РґРёР°РїР°Р·РѕРЅРµ 1..31, РїРѕР»СѓС‡РµРЅРѕ $day',
+        'День должен быть в диапазоне 1..31, получено $day',
       );
     }
-    // 30 С„РµРІСЂР°Р»СЏ Рё 31 Р°РїСЂРµР»СЏ РЅРµ СЃСѓС‰РµСЃС‚РІСѓСЋС‚; 29 С„РµРІСЂР°Р»СЏ РґРѕРїСѓСЃРєР°РµРј вЂ”
-    // РµРіРѕ РїРµСЂРµРЅРѕСЃ РЅР° 1 РјР°СЂС‚Р° РёР»Рё 28 С„РµРІСЂР°Р»СЏ РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ.
+    // 30 февраля и 31 апреля не существуют; 29 февраля допускаем —
+    // его перенос на 1 марта или 28 февраля обрабатывается отдельно.
     final maxDay = _daysInMonth(month, birthYear ?? 2024);
     final allowed = month == 2 && day == 29 ? 29 : maxDay;
     if (day > allowed) {
-      throw ArgumentError('Р’ РјРµСЃСЏС†Рµ $month РЅРµС‚ $day-РіРѕ РґРЅСЏ');
+      throw ArgumentError('В месяце $month нет $day-го дня');
     }
     final now = DateTime.now();
     if (birthYear != null && (birthYear < 1900 || birthYear > now.year)) {
       throw ArgumentError(
-        'Р“РѕРґ СЂРѕР¶РґРµРЅРёСЏ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РІ РґРёР°РїР°Р·РѕРЅРµ 1900..${now.year}',
+        'Год рождения должен быть в диапазоне 1900..${now.year}',
       );
     }
   }
@@ -349,9 +349,9 @@ class BirthdayRepository {
 class ImportIndex {
   const ImportIndex({required this.byId, required this.byKey});
 
-  /// Р—Р°РїРёСЃРё РїРѕ UUID вЂ” С‚РѕС‡РЅРѕРµ СЃРѕРІРїР°РґРµРЅРёРµ.
+  /// Записи по UUID — точное совпадение.
   final Map<String, Birthday> byId;
 
-  /// Р—Р°РїРёСЃРё РїРѕ РЅРѕСЂРјРёСЂРѕРІР°РЅРЅС‹Рј РёРјРµРЅРё Рё РґР°С‚Рµ вЂ” СЌРІСЂРёСЃС‚РёРєР° РґР»СЏ РґСѓР±Р»РµР№.
+  /// Записи по нормированным имени и дате — эвристика для дублей.
   final Map<String, Birthday> byKey;
 }
