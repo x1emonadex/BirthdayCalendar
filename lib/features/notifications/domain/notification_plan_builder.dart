@@ -141,6 +141,11 @@ class NotificationPlanBuilder {
 
     final events = <NotificationEvent>[];
 
+    // Времена сортируем: порядок в плане должен быть детерминированным,
+    // иначе перезапуск приложения мог бы переставить уведомления местами.
+    final times = settings.activeTimes
+      ..sort((a, b) => a.minutesOfDay.compareTo(b.minutesOfDay));
+
     for (final item in items) {
       final birthday = item.birthday;
 
@@ -153,31 +158,36 @@ class NotificationPlanBuilder {
       for (final daysBefore in rules) {
         if (daysBefore < 0) continue;
 
-        final fireAt = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          settings.hour,
-          settings.minute,
-        ).subtract(Duration(days: daysBefore));
+        for (final time in times) {
+          // День отсчитываем в календаре, а не вычитанием суток: при переходе
+          // на летнее время вычитание 24 часов сдвинуло бы время на час.
+          final fireAt = DateTime(
+            date.year,
+            date.month,
+            date.day - daysBefore,
+            time.hour,
+            time.minute,
+          );
 
-        events.add(
-          NotificationEvent(
-            id: stableNotificationId(
-              profileId: birthday.profileId,
+          events.add(
+            NotificationEvent(
+              id: stableNotificationId(
+                profileId: birthday.profileId,
+                birthdayId: birthday.id,
+                daysBefore: daysBefore,
+                minuteOfDay: time.minutesOfDay,
+              ),
               birthdayId: birthday.id,
+              profileId: birthday.profileId,
+              name: birthday.name,
               daysBefore: daysBefore,
+              occurrenceDate: date,
+              fireAt: fireAt,
+              status: _statusOf(fireAt, now, immediateThreshold),
+              isImportant: birthday.isImportant,
             ),
-            birthdayId: birthday.id,
-            profileId: birthday.profileId,
-            name: birthday.name,
-            daysBefore: daysBefore,
-            occurrenceDate: date,
-            fireAt: fireAt,
-            status: _statusOf(fireAt, now, immediateThreshold),
-            isImportant: birthday.isImportant,
-          ),
-        );
+          );
+        }
       }
     }
 
@@ -287,13 +297,18 @@ class NotificationPlanBuilder {
   /// Приведение к unsigned идёт на каждом шаге — иначе на больших значениях
   /// Dart выдаёт отрицательный int. Финальная маска оставляет результат в
   /// диапазоне 0..2^31-1, который требует `flutter_local_notifications`.
+  ///
+  /// [minuteOfDay] входит в ключ: в сутки может быть несколько времён, и без
+  /// него уведомления одного дня затёрли бы друг друга.
   static int stableNotificationId({
     required String profileId,
     required String birthdayId,
     required int daysBefore,
+    required int minuteOfDay,
   }) {
     var hash = 0x811c9dc5;
-    for (final byte in utf8.encode('$profileId:$birthdayId:$daysBefore')) {
+    final key = '$profileId:$birthdayId:$daysBefore:$minuteOfDay';
+    for (final byte in utf8.encode(key)) {
       hash = (hash ^ byte) & 0xFFFFFFFF;
       hash = (hash * 0x01000193) & 0xFFFFFFFF;
     }

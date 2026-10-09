@@ -45,8 +45,8 @@ void main() {
     test('значения по умолчанию', () {
       expect(settings.enabled, isTrue);
       expect(settings.daysBefore, {7, 1, 0});
-      expect(settings.hour, 9);
-      expect(settings.minute, 0);
+      expect(settings.times, const [NotificationTime(9, 0)]);
+      expect(settings.activeTimes, const [NotificationTime(9, 0)]);
       expect(settings.importantOnly, isFalse);
     });
 
@@ -58,9 +58,9 @@ void main() {
     });
 
     test('copyWith меняет одно поле, остальные сохраняет', () {
-      final changed = settings.copyWith(hour: 18);
-      expect(changed.hour, 18);
-      expect(changed.minute, settings.minute);
+      final changed = settings.copyWith(times: const [NotificationTime(18, 0)]);
+      expect(changed.times, const [NotificationTime(18, 0)]);
+      expect(changed.daysBefore, settings.daysBefore);
       expect(changed.enabled, settings.enabled);
     });
 
@@ -119,7 +119,10 @@ void main() {
       final events = NotificationPlanBuilder.buildPlan(
         now: d(2026, 3, 1),
         items: [birthday(occurrenceDate: d(2026, 3, 22))],
-        settings: settings.copyWith(daysBefore: {7}, hour: 8, minute: 30),
+        settings: settings.copyWith(
+          daysBefore: {7},
+          times: const [NotificationTime(8, 30)],
+        ),
       );
       expect(events.single.fireAt, d(2026, 3, 15, 8, 30));
     });
@@ -319,7 +322,7 @@ void main() {
         events.map((e) => e.daysBefore).toList(),
         [15, 2, 0],
       );
-      expect(events.first.fireAt, d(2026, 3, 15, settings.hour, settings.minute));
+      expect(events.first.fireAt, d(2026, 3, 15, 9, 0));
       expect(
         events.first.title,
         'Через 15 дней — ${events.first.name}',
@@ -445,11 +448,17 @@ void main() {
   });
 
   group('stableNotificationId', () {
-    int id(String birthdayId, {int daysBefore = 7, String profileId = 'p1'}) {
+    int id(
+      String birthdayId, {
+      int daysBefore = 7,
+      String profileId = 'p1',
+      int minuteOfDay = 540,
+    }) {
       return NotificationPlanBuilder.stableNotificationId(
         profileId: profileId,
         birthdayId: birthdayId,
         daysBefore: daysBefore,
+        minuteOfDay: minuteOfDay,
       );
     }
 
@@ -640,6 +649,112 @@ void main() {
       expect(pluralPeople(21), 'человека');
       expect(pluralPeople(22), 'человек');
       expect(pluralPeople(101), 'человека');
+    });
+  });
+
+  group('несколько времён в сутки', () {
+    test('на каждое включённое время — своё уведомление', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 1),
+        items: [birthday(occurrenceDate: d(2026, 3, 22))],
+        settings: settings.copyWith(
+          daysBefore: {0},
+          times: const [NotificationTime(9, 0), NotificationTime(19, 30)],
+        ),
+      );
+
+      expect(events.map((e) => e.fireAt).toList(), [
+        d(2026, 3, 22, 9, 0),
+        d(2026, 3, 22, 19, 30),
+      ]);
+    });
+
+    test('уведомления разных времён не затирают друг друга', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 1),
+        items: [birthday(occurrenceDate: d(2026, 3, 22))],
+        settings: settings.copyWith(
+          daysBefore: {0},
+          times: const [NotificationTime(9, 0), NotificationTime(19, 30)],
+        ),
+      );
+
+      // Идентификатор у них общий был бы только при одинаковом времени —
+      // тогда одно уведомление затёрло бы второе.
+      expect(events.map((e) => e.id).toSet(), hasLength(2));
+    });
+
+    test('выключенное время не планируется, но остаётся в настройках', () {
+      final withDisabled = settings.copyWith(
+        daysBefore: {0},
+        times: const [
+          NotificationTime(9, 0),
+          NotificationTime(19, 30, enabled: false),
+        ],
+      );
+
+      expect(withDisabled.times, hasLength(2));
+      expect(withDisabled.activeTimes, hasLength(1));
+
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 1),
+        items: [birthday(occurrenceDate: d(2026, 3, 22))],
+        settings: withDisabled,
+      );
+      expect(events.single.fireAt, d(2026, 3, 22, 9, 0));
+    });
+
+    test('все времена выключены — уведомлений нет', () {
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 1),
+        items: [birthday(occurrenceDate: d(2026, 3, 22))],
+        settings: settings.copyWith(
+          daysBefore: {0},
+          times: const [NotificationTime(9, 0, enabled: false)],
+        ),
+      );
+      expect(events, isEmpty);
+    });
+
+    test('повторы убираются, включённое время важнее выключенного', () {
+      final normalized = NotificationSettings.normalizeTimes(const [
+        NotificationTime(19, 30),
+        NotificationTime(9, 0, enabled: false),
+        NotificationTime(9, 0),
+      ]);
+
+      expect(normalized, const [
+        NotificationTime(9, 0),
+        NotificationTime(19, 30),
+      ]);
+    });
+
+    test('времена в настройках идут по возрастанию', () {
+      final sorted = settings.copyWith(
+        times: const [NotificationTime(21, 0), NotificationTime(7, 15)],
+      );
+      expect(sorted.times, const [
+        NotificationTime(7, 15),
+        NotificationTime(21, 0),
+      ]);
+    });
+
+    test('день отсчитывается по календарю и время не съезжает', () {
+      // «За 7 дней» до 22 марта — это 15 марта в то же время.
+      final events = NotificationPlanBuilder.buildPlan(
+        now: d(2026, 3, 1),
+        items: [birthday(occurrenceDate: d(2026, 3, 22))],
+        settings: settings.copyWith(
+          daysBefore: {7},
+          times: const [NotificationTime(23, 45)],
+        ),
+      );
+      expect(events.single.fireAt, d(2026, 3, 15, 23, 45));
+    });
+
+    test('время показывается с ведущим нулём', () {
+      expect(const NotificationTime(9, 5).label, '09:05');
+      expect(const NotificationTime(19, 30).label, '19:30');
     });
   });
 }

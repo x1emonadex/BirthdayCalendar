@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:birthday_calendar/core/database/app_database.dart';
 import 'package:birthday_calendar/features/birthdays/data/birthday_repository.dart';
 import 'package:birthday_calendar/features/export_import/data/birthday_importer.dart';
@@ -86,6 +88,30 @@ void main() {
       final rows = FileExportService.readCsv(csv);
       expect(rows, hasLength(2));
       expect(rows[1].first, 'Аня');
+    });
+
+    test('читает файл в байтах, а не только в строке', () {
+      // Идём через readTable, как это делает импорт. Раньше байты превращались
+      // в символы напрямую, и кириллица в UTF-8 — два байта на букву —
+      // рассыпалась в мусор: свой же выгруженный файл приложение прочитать не
+      // могло. Тесты, которые звали readCsv со строкой, этого не ловили.
+      final bytes = <int>[
+        0xEF,
+        0xBB,
+        0xBF,
+        ...utf8.encode(
+          'ID;Имя;День;Месяц;Год рождения;Заметка;Важный\n'
+          'u1;Аня;15;3;1990;торт;да\n'
+          'u2;Борис;1;5;;;нет\n',
+        ),
+      ];
+
+      final parsed = ImportParser.parse(FileExportService.readTable(bytes));
+      expect(parsed.errors, isEmpty);
+      expect(parsed.candidates, hasLength(2));
+      expect(parsed.candidates.first.name, 'Аня');
+      expect(parsed.candidates.first.birthYear, 1990);
+      expect(parsed.candidates.last.name, 'Борис');
     });
   });
 

@@ -136,8 +136,7 @@ abstract final class NotificationSettingsCodec {
                 ?.map((e) => (e as num).toInt())
                 .toSet() ??
             NotificationSettings.defaultDaysBefore,
-        hour: (map['hour'] as num?)?.toInt() ?? 9,
-        minute: (map['minute'] as num?)?.toInt() ?? 0,
+        times: _decodeTimes(map),
         importantOnly: map['importantOnly'] as bool? ?? false,
       );
     } catch (_) {
@@ -146,13 +145,53 @@ abstract final class NotificationSettingsCodec {
     }
   }
 
+  /// Времена из сохранённых настроек.
+  ///
+  /// Раньше время было одно и лежало двумя числами — `hour` и `minute`. Такие
+  /// настройки читаются как список из одного времени: иначе у всех, кто уже
+  /// поставил напоминание, оно бы сбросилось на девять утра.
+  static List<NotificationTime> _decodeTimes(Map<String, dynamic> map) {
+    final raw = map['times'];
+    if (raw is List) {
+      final times = <NotificationTime>[];
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final hour = (item['hour'] as num?)?.toInt();
+        final minute = (item['minute'] as num?)?.toInt();
+        if (hour == null || minute == null) continue;
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) continue;
+        times.add(
+          NotificationTime(
+            hour,
+            minute,
+            enabled: item['enabled'] as bool? ?? true,
+          ),
+        );
+      }
+      if (times.isNotEmpty) return NotificationSettings.normalizeTimes(times);
+    }
+
+    final hour = (map['hour'] as num?)?.toInt();
+    final minute = (map['minute'] as num?)?.toInt();
+    if (hour != null || minute != null) {
+      return [NotificationTime(hour ?? 9, minute ?? 0)];
+    }
+    return NotificationSettings.defaultTimes;
+  }
+
   static String encode(NotificationSettings settings) {
     final days = settings.daysBefore.toList()..sort();
     return jsonEncode({
       'enabled': settings.enabled,
       'daysBefore': days,
-      'hour': settings.hour,
-      'minute': settings.minute,
+      'times': [
+        for (final time in settings.times)
+          {
+            'hour': time.hour,
+            'minute': time.minute,
+            'enabled': time.enabled,
+          },
+      ],
       'importantOnly': settings.importantOnly,
     });
   }

@@ -142,7 +142,20 @@ class FileExportService {
       return readExcel(Excel.decodeBytes(bytes));
     }
 
-    return readCsv(String.fromCharCodes(_stripBomBytes(bytes)));
+    return readCsv(_decodeText(_stripBomBytes(bytes)));
+  }
+
+  /// Декодирует байты в текст: сначала пробуем UTF-8, иначе читаем как есть.
+  ///
+  /// Через `String.fromCharCodes` читать нельзя: кириллица в UTF-8 занимает по
+  /// два байта, и каждая буква превращалась бы в два мусорных символа — свой
+  /// же экспорт приложение прочитать не могло.
+  static String _decodeText(List<int> bytes) {
+    try {
+      return utf8.decode(bytes);
+    } on FormatException {
+      return String.fromCharCodes(bytes);
+    }
   }
 
   /// Разбирает CSV: умеет запятую и точку с запятой, понимает кавычки.

@@ -133,15 +133,41 @@ class _NotificationSettingsScreenState
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Время напоминания'),
-                subtitle: Text(
-                  '${_twoDigits(current.hour)}:${_twoDigits(current.minute)}',
+              const Divider(),
+              const _Hint('Когда напоминать'),
+              for (var index = 0; index < current.times.length; index++)
+                _TimeTile(
+                  time: current.times[index],
+                  // Последнее время убрать нельзя: без времён напоминания
+                  // превратились бы в настройку, которая молча ничего не делает.
+                  canRemove: current.times.length > 1,
+                  onPick: () => _pickTime(context, current, index),
+                  onToggle: (value) => _apply(
+                    current.copyWith(
+                      times: _replace(
+                        current.times,
+                        index,
+                        current.times[index].copyWith(enabled: value),
+                      ),
+                    ),
+                  ),
+                  onRemove: () => _apply(
+                    current.copyWith(times: _without(current.times, index)),
+                  ),
                 ),
-                trailing: const Icon(Icons.schedule),
-                onTap: () => _pickTime(context, current),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ActionChip(
+                    avatar: const Icon(Icons.add, size: 18),
+                    label: const Text('Добавить время'),
+                    onPressed: _saving ||
+                            current.times.length >= NotificationSettings.maxTimes
+                        ? null
+                        : () => _addTime(context, current),
+                  ),
+                ),
               ),
               SwitchListTile(
                 contentPadding: const EdgeInsets.symmetric(
@@ -206,23 +232,72 @@ class _NotificationSettingsScreenState
     );
   }
 
-  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+  /// Меняет одно время в списке, сохраняя его место.
+  static List<NotificationTime> _replace(
+    List<NotificationTime> times,
+    int index,
+    NotificationTime value,
+  ) {
+    final next = List<NotificationTime>.from(times);
+    next[index] = value;
+    return next;
+  }
 
+  static List<NotificationTime> _without(
+    List<NotificationTime> times,
+    int index,
+  ) {
+    return List<NotificationTime>.from(times)..removeAt(index);
+  }
+
+  /// Меняет время одной из строк.
   Future<void> _pickTime(
+    BuildContext context,
+    NotificationSettings current,
+    int index,
+  ) async {
+    final time = current.times[index];
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: time.hour, minute: time.minute),
+    );
+    if (picked == null || !mounted) return;
+    await _apply(
+      current.copyWith(
+        times: _replace(
+          current.times,
+          index,
+          time.copyWith(hour: picked.hour, minute: picked.minute),
+        ),
+      ),
+    );
+  }
+
+  /// Спрашивает время и добавляет его к списку.
+  Future<void> _addTime(
     BuildContext context,
     NotificationSettings current,
   ) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(
-        hour: current.hour,
-        minute: current.minute,
+        hour: NotificationTime.defaultTime.hour,
+        minute: NotificationTime.defaultTime.minute,
       ),
     );
-    if (picked == null) return;
-    await _apply(
-      current.copyWith(hour: picked.hour, minute: picked.minute),
+    if (picked == null || !mounted) return;
+
+    final added = NotificationTime(picked.hour, picked.minute);
+    // Если такое время уже есть, но выключено, — включаем его, а не заводим
+    // второе: два одинаковых времени дали бы одно и то же уведомление.
+    final existing = current.times.indexWhere(
+      (time) => time.minutesOfDay == added.minutesOfDay,
     );
+    final next = existing >= 0
+        ? _replace(current.times, existing, added)
+        : [...current.times, added];
+
+    await _apply(current.copyWith(times: next));
   }
 
   Future<void> _showTest() async {
@@ -232,6 +307,7 @@ class _NotificationSettingsScreenState
         profileId: 'test',
         birthdayId: 'test',
         daysBefore: 0,
+        minuteOfDay: 0,
       ),
       fireAt: now,
       title: 'Тестовое уведомление',
@@ -323,6 +399,54 @@ class _CustomDaysDialogState extends State<_CustomDaysDialog> {
         ),
         FilledButton(onPressed: _submit, child: const Text('Добавить')),
       ],
+    );
+  }
+}
+
+/// Строка одного времени напоминания: само время, выключатель и удаление.
+class _TimeTile extends StatelessWidget {
+  const _TimeTile({
+    required this.time,
+    required this.canRemove,
+    required this.onPick,
+    required this.onToggle,
+    required this.onRemove,
+  });
+
+  final NotificationTime time;
+  final bool canRemove;
+  final VoidCallback onPick;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      contentPadding: const EdgeInsets.only(left: 16, right: 8),
+      leading: Icon(
+        Icons.schedule,
+        color: time.enabled ? theme.colorScheme.primary : null,
+      ),
+      title: Text(
+        time.label,
+        style: time.enabled ? null : TextStyle(color: theme.disabledColor),
+      ),
+      subtitle: time.enabled ? null : const Text('Выключено'),
+      onTap: onPick,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Switch(value: time.enabled, onChanged: onToggle),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: canRemove
+                ? 'Удалить время'
+                : 'Последнее время убрать нельзя',
+            onPressed: canRemove ? onRemove : null,
+          ),
+        ],
+      ),
     );
   }
 }
