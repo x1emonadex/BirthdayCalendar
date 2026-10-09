@@ -52,13 +52,17 @@
 
 ## Скачать
 
-Готовые сборки в разделе
-[**Releases**](https://github.com/x1emonadex/BirthdayCalendar/releases):
+Готовые сборки — в разделе
+[**Releases**](https://github.com/x1emonadex/BirthdayCalendar/releases/latest).
+Номер версии входит в имя файла:
 
 | Платформа | Файл |
 | --- | --- |
-| Android | `birthday-calendar-1.0.13-android.apk` |
-| Windows | `birthday-calendar-1.0.13-windows.zip` |
+| Android | `birthday-calendar-<версия>-android.apk` |
+| Windows | `birthday-calendar-<версия>-windows.zip` |
+
+Установка: на Android — открыть APK и разрешить установку из этого источника;
+на Windows — распаковать архив и запустить `birthday_calendar.exe`.
 
 ## Сборка и запуск
 
