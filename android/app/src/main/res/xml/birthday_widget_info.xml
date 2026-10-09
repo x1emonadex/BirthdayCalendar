@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Минимальные размеры маленькие, чтобы виджет можно было и сжать, и
      растянуть. targetCell* задаёт размер по умолчанию (2×2) на Android 12+;
-     на старых версиях атрибут игнорируется, и размер берётся из minWidth. -->
+     на старых версиях атрибут игнорируется, и размер берётся из minWidth.
+
+     configure — экран настроек виджета: он же даёт кнопку «Настройки» при
+     долгом нажатии, которой иначе неоткуда взяться. configuration_optional
+     означает, что при добавлении виджета настройки показывать не обязательно —
+     хватает значений по умолчанию. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.bdays.birthday_calendar.BirthdayWidgetConfigActivity"
     android:initialLayout="@layout/birthday_widget_layout"
     android:minHeight="60dp"
     android:minResizeHeight="60dp"
@@ -12,5 +18,6 @@
     android:targetCellHeight="2"
     android:targetCellWidth="2"
     android:updatePeriodMillis="86400000"
-    android:widgetCategory="home_screen">
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional">
 </appwidget-provider>

@@ -15,4 +15,10 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Тема экрана настроек виджета. Своя, а не системная: системная
+         Theme.DeviceDefault.DayNight есть только с Android 10, а приложение
+         ставится и на более старые версии. -->
+    <style name="WidgetConfigTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
 </resources>

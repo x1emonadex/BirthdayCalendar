@@ -15,4 +15,8 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Тёмный вариант темы экрана настроек виджета. -->
+    <style name="WidgetConfigTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
 </resources>

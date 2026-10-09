@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!-- Виджет «ближайшие дни рождения»: заголовок и до трёх строк со сроками. -->
+<!-- Виджет «ближайшие дни рождения»: заголовок и до пяти строк со сроками.
+     Строк пять, а не три: сколько показывать, решает настройка виджета, а
+     лишние строки провайдер прячет. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_margin="6dp"
-    android:background="@drawable/birthday_widget_background"
+    android:background="@drawable/widget_bg_80"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -44,6 +46,26 @@
 
     <TextView
         android:id="@+id/widget_line_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#E6FFFFFF"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/widget_line_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#E6FFFFFF"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/widget_line_5"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"

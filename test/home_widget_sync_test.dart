@@ -55,13 +55,13 @@ void main() {
       expect(lines, ['Сегодня: Алада, Лимон', '15 сентября: Иван']);
     });
 
-    test('показывает не больше трёх дат', () {
+    test('показывает не больше заданного числа дат', () {
       final lines = nextBirthdayLines([
         on('А', DateTime(2026, 9, 9), daysUntil: 0),
         on('Б', DateTime(2026, 9, 10), daysUntil: 1),
         on('В', DateTime(2026, 9, 11), daysUntil: 2),
         on('Г', DateTime(2026, 9, 12), daysUntil: 3),
-      ]);
+      ], maxLines: 3);
 
       expect(lines, hasLength(3));
       expect(lines.last, '11 сентября: В');

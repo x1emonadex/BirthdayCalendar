@@ -61,6 +61,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Экран настроек виджета: прозрачность, число строк, заголовок.
+             Без этой активности лаунчер не показывает кнопку «Настройки»
+             при долгом нажатии на виджет. -->
+        <activity
+            android:name=".BirthdayWidgetConfigActivity"
+            android:exported="true"
+            android:label="Дни рождения"
+            android:theme="@style/WidgetConfigTheme">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Виджет на рабочем столе: ближайший день рождения и срок до него.
              Данные кладёт приложение, разметку рисует BirthdayWidgetProvider. -->
         <receiver

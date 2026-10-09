@@ -13,11 +13,11 @@ const String kBirthdayWidgetProvider = 'BirthdayWidgetProvider';
 const String kWidgetTitleKey = 'widget_title';
 const String kWidgetLineKeyPrefix = 'widget_line_';
 
-/// Сколько строк с ближайшими датами помещается в виджет.
+/// Сколько строк с ближайшими датами отдаём виджету.
 ///
-/// Три строки — столько влезает и в компактный виджет, и в растянутый на всю
-/// ширину: дальше список читать неудобно.
-const int kWidgetMaxLines = 3;
+/// Пять — по числу строк в разметке виджета. Сколько из них показать, решает
+/// настройка виджета на стороне Android, поэтому данные готовим на все.
+const int kWidgetMaxLines = 5;
 
 /// Подпись даты в виджете: «Сегодня», «Завтра» или «15 сентября».
 ///
